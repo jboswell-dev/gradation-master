@@ -1,0 +1,2387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#8B0000">
+<title>Gradation Master 5000</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ── TOKENS ─────────────────────────────────────────────────── */
+:root {
+  --red:        #8B0000;
+  --red-dark:   #6B0000;
+  --red-light:  #A50000;
+  --charcoal:   #1A1A1A;
+  --stone:      #F5F4F2;
+  --white:      #FFFFFF;
+  --border:     #E2E0DC;
+  --steel:      #6B7280;
+  --steel-lt:   #9CA3AF;
+  --text:       #1A1A1A;
+  --text-sub:   #4B5563;
+  --pass-green: #166534;
+  --fail-red:   #991B1B;
+  --input-bg:   #FAFAF9;
+  --row-h:      clamp(38px, 5vw, 52px);
+  --header-h:   clamp(130px, 18vh, 180px);
+  --tabbar-h:   52px;
+  --font-ui:    'Inter', system-ui, sans-serif;
+  --font-data:  'IBM Plex Mono', monospace;
+  --radius:     6px;
+  --shadow:     0 1px 3px rgba(0,0,0,.1), 0 1px 2px rgba(0,0,0,.06);
+}
+
+/* ── RESET ──────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; background: var(--stone); }
+body { font-family: var(--font-ui); font-size: 14px; color: var(--text); display: flex; flex-direction: column; }
+input, select, button, textarea { font-family: inherit; font-size: inherit; border: none; outline: none; background: none; }
+button { cursor: pointer; }
+
+/* ── LAYOUT ─────────────────────────────────────────────────── */
+#app { display: flex; flex-direction: column; height: 100%; }
+
+/* ── HEADER ─────────────────────────────────────────────────── */
+#header {
+  background: var(--red);
+  color: var(--white);
+  flex-shrink: 0;
+  padding: 10px 14px 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+  z-index: 10;
+}
+#header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+#app-title {
+  font-size: clamp(13px, 2.5vw, 18px);
+  font-weight: 700;
+  letter-spacing: -.3px;
+}
+#header-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.header-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,.12);
+  border-radius: var(--radius);
+  padding: 5px 8px;
+}
+.header-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  opacity: .75;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.header-input {
+  color: var(--white);
+  font-size: clamp(12px, 1.8vw, 14px);
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+}
+.header-input::placeholder { color: rgba(255,255,255,.5); }
+.header-input option { color: var(--text); background: var(--white); }
+select.header-input { cursor: pointer; }
+#quarry-row { grid-column: 1 / -1; }
+#product-row { grid-column: 1 / 2; }
+#type-row { grid-column: 2 / 3; }
+
+/* ── QUEUE BADGE ────────────────────────────────────────────── */
+#queue-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 20px;
+  background: rgba(255,255,255,.2);
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,.3);
+  transition: background .15s;
+}
+#queue-badge:hover { background: rgba(255,255,255,.3); }
+#queue-badge.has-items { background: #FF6B6B; border-color: #FF4444; }
+
+/* ── SIEVE SECTION ──────────────────────────────────────────── */
+#sieve-section {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 0 8px;
+  display: flex;
+  flex-direction: column;
+}
+/* Wraps everything except the notes/actions bar. flex-grow lets it absorb
+   any leftover vertical space so notes/actions sit pinned to the bottom of
+   the visible area on short tabs, while still scrolling normally with the
+   rest of the content (rather than a separate fixed footer) on long ones. */
+#sieve-content {
+  flex: 1 0 auto;
+}
+
+/* ── SECTION HEADERS ────────────────────────────────────────── */
+.section-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  color: var(--steel);
+  padding: 10px 14px 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ── WEIGHT FIELDS ──────────────────────────────────────────── */
+.weight-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 14px;
+  gap: 8px;
+}
+.weight-label {
+  font-size: 12px;
+  color: var(--text-sub);
+  width: 130px;
+  flex-shrink: 0;
+}
+.weight-input {
+  font-family: var(--font-data);
+  font-size: 13px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 5px 8px;
+  width: 100px;
+  color: var(--text);
+  -webkit-appearance: none;
+}
+.weight-input:focus { border-color: var(--red); box-shadow: 0 0 0 2px rgba(139,0,0,.1); }
+.weight-computed {
+  font-family: var(--font-data);
+  font-size: 12px;
+  color: var(--text-sub);
+  margin-left: 4px;
+}
+.weight-computed.red { color: var(--fail-red); font-weight: 600; }
+
+/* ── SIEVE TABLE ────────────────────────────────────────────── */
+.sieve-table {
+  width: 100%;
+  padding: 0 14px;
+  margin-bottom: 4px;
+}
+.sieve-header-row {
+  display: grid;
+  grid-template-columns: 52px 1fr 1fr 70px 70px;
+  gap: 4px;
+  padding: 3px 8px;
+  margin-bottom: 2px;
+}
+.sieve-col-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: var(--steel-lt);
+  text-align: right;
+}
+.sieve-col-label:first-child { text-align: center; }
+.sieve-col-label:nth-child(4), .sieve-col-label:nth-child(5) { text-align: center; }
+
+.sieve-row {
+  display: grid;
+  grid-template-columns: 52px 1fr 1fr 70px 70px;
+  gap: 4px;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: var(--radius);
+  border-left: 3px solid transparent;
+  margin-bottom: 2px;
+  transition: border-color .15s;
+  background: var(--white);
+  box-shadow: var(--shadow);
+}
+.sieve-row.in-spec { border-left-color: var(--pass-green); }
+.sieve-row.out-spec { border-left-color: var(--fail-red); }
+.sieve-row.pan-row { background: var(--stone); box-shadow: none; border-left-color: transparent !important; }
+
+.sieve-name {
+  font-family: var(--font-data);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-sub);
+  text-align: center;
+}
+.sieve-input {
+  font-family: var(--font-data);
+  font-size: 13px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 6px;
+  text-align: right;
+  color: var(--text);
+  width: 100%;
+  -webkit-appearance: none;
+  inputmode: decimal;
+}
+.sieve-input:focus { border-color: var(--red); box-shadow: 0 0 0 2px rgba(139,0,0,.1); background: var(--white); }
+.sieve-input.auto-calc { background: #F0EFED; color: var(--text-sub); }
+.sieve-input.negative { color: var(--fail-red); }
+.sieve-input:disabled { background: #EBEBEA; color: var(--steel-lt); cursor: not-allowed; }
+/* Hide number input spinners */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
+
+.pct-passing {
+  font-family: var(--font-data);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  color: var(--steel);
+}
+.pct-passing.in-spec { color: var(--pass-green); }
+.pct-passing.out-spec { color: var(--fail-red); font-weight: 700; }
+
+.spec-range {
+  font-family: var(--font-data);
+  font-size: 11px;
+  color: var(--steel-lt);
+  text-align: center;
+}
+
+/* ── NOTES & ACTIONS ────────────────────────────────────────── */
+#notes-section {
+  padding: 8px 14px;
+  margin-top: auto;
+}
+#notes-input {
+  width: 100%;
+  min-height: 60px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  font-size: 13px;
+  color: var(--text);
+  resize: none;
+  box-shadow: var(--shadow);
+}
+#notes-input:focus { border-color: var(--red); box-shadow: 0 0 0 2px rgba(139,0,0,.1); }
+#action-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  align-items: center;
+}
+#btn-submit {
+  flex: 1;
+  background: var(--red);
+  color: var(--white);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transition: background .15s;
+}
+#btn-submit:hover { background: var(--red-light); }
+#btn-submit:disabled { background: var(--steel-lt); cursor: not-allowed; }
+#btn-delete {
+  width: 42px;
+  height: 42px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fail-red);
+  box-shadow: var(--shadow);
+}
+#btn-delete:hover { background: #FEF2F2; }
+
+/* ── TAB BAR ────────────────────────────────────────────────── */
+#tabbar {
+  background: var(--red);
+  height: var(--tabbar-h);
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+#tabbar::-webkit-scrollbar { display: none; }
+.tab-btn {
+  flex-shrink: 0;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,.6);
+  white-space: nowrap;
+  border-right: 1px solid rgba(255,255,255,.1);
+  transition: color .15s, background .15s;
+  min-width: 80px;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tab-btn.active { color: var(--white); background: rgba(255,255,255,.15); }
+.tab-btn:hover:not(.active) { color: rgba(255,255,255,.85); }
+#btn-new-tab {
+  flex-shrink: 0;
+  width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,.7);
+  font-size: 20px;
+  font-weight: 300;
+  margin-left: auto;
+}
+#btn-new-tab:hover { color: var(--white); }
+
+/* ── POPUPS ─────────────────────────────────────────────────── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.5);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(2px);
+}
+.overlay.hidden { display: none; }
+.dialog {
+  background: var(--white);
+  border-radius: 12px;
+  padding: 24px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.3);
+}
+.dialog h2 {
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.dialog p {
+  font-size: 13px;
+  color: var(--text-sub);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+.dialog-buttons {
+  display: flex;
+  gap: 8px;
+}
+.btn-primary {
+  flex: 1;
+  background: var(--red);
+  color: var(--white);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px;
+  border-radius: var(--radius);
+}
+.btn-secondary {
+  flex: 1;
+  background: var(--stone);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+.btn-danger {
+  flex: 1;
+  background: var(--fail-red);
+  color: var(--white);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px;
+  border-radius: var(--radius);
+}
+
+/* ── CUSTOM PRODUCT DIALOG ──────────────────────────────────── */
+#custom-dialog .sieve-picker {
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+}
+.picker-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--steel);
+  padding: 6px 10px 4px;
+  background: var(--stone);
+  position: sticky;
+  top: 0;
+}
+.picker-sieve-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.picker-sieve-row:last-child { border-bottom: none; }
+.picker-sieve-row:hover { background: var(--stone); }
+.picker-sieve-row input[type=checkbox] { accent-color: var(--red); width: 16px; height: 16px; }
+.picker-sieve-label { font-family: var(--font-data); font-size: 13px; }
+.section-toggle {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.section-toggle button {
+  flex: 1;
+  padding: 7px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 600;
+  border: 1.5px solid var(--border);
+  color: var(--steel);
+  background: var(--stone);
+  transition: all .15s;
+}
+.section-toggle button.active {
+  background: var(--red);
+  color: var(--white);
+  border-color: var(--red);
+}
+.fine-mode-toggle {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.fine-mode-toggle button {
+  flex: 1;
+  padding: 6px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 600;
+  border: 1.5px solid var(--border);
+  color: var(--steel);
+  background: var(--stone);
+  transition: all .15s;
+}
+.fine-mode-toggle button.active {
+  background: var(--red);
+  color: var(--white);
+  border-color: var(--red);
+}
+.custom-name-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  font-size: 14px;
+  margin-bottom: 10px;
+  background: var(--input-bg);
+}
+.custom-name-input:focus { border-color: var(--red); box-shadow: 0 0 0 2px rgba(139,0,0,.1); }
+
+/* ── QUEUE SCREEN ───────────────────────────────────────────── */
+#queue-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--stone);
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+}
+#queue-screen.hidden { display: none; }
+#queue-header {
+  background: var(--red);
+  color: var(--white);
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+#queue-header h1 { font-size: 16px; font-weight: 700; flex: 1; }
+#btn-queue-back, #btn-queue-submit-all {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  background: rgba(255,255,255,.2);
+  color: var(--white);
+}
+#queue-list { flex: 1; overflow-y: auto; padding: 12px; }
+.queue-item {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+.queue-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+.queue-item-info h3 { font-size: 14px; font-weight: 600; }
+.queue-item-info p { font-size: 12px; color: var(--steel); margin-top: 2px; }
+.queue-item-actions { display: flex; gap: 6px; align-items: center; }
+.btn-expand { font-size: 11px; color: var(--steel); padding: 4px 8px; border: 1px solid var(--border); border-radius: 4px; }
+.btn-queue-delete { font-size: 11px; color: var(--fail-red); padding: 4px 8px; border: 1px solid #FCA5A5; border-radius: 4px; background: #FEF2F2; }
+.queue-item-detail {
+  border-top: 1px solid var(--border);
+  padding: 10px 12px;
+  font-family: var(--font-data);
+  font-size: 11px;
+  color: var(--text-sub);
+  line-height: 1.8;
+  display: none;
+}
+.queue-item-detail.open { display: block; }
+#queue-empty {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--steel);
+}
+#queue-empty p { font-size: 14px; margin-top: 8px; }
+
+/* ── AUTH SCREEN ────────────────────────────────────────────── */
+#auth-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--red);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 40px;
+}
+#auth-screen.hidden { display: none; }
+#auth-screen h1 { color: var(--white); font-size: 24px; font-weight: 700; text-align: center; }
+#auth-screen p { color: rgba(255,255,255,.75); font-size: 14px; text-align: center; line-height: 1.6; }
+#btn-sign-in {
+  background: var(--white);
+  color: var(--red);
+  font-size: 15px;
+  font-weight: 700;
+  padding: 14px 32px;
+  border-radius: var(--radius);
+  box-shadow: 0 4px 12px rgba(0,0,0,.2);
+}
+#auth-status { color: rgba(255,255,255,.6); font-size: 13px; }
+
+/* ── TOAST ──────────────────────────────────────────────────── */
+#toast {
+  position: fixed;
+  bottom: calc(var(--tabbar-h) + 12px);
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--charcoal);
+  color: var(--white);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 10px 18px;
+  border-radius: 20px;
+  opacity: 0;
+  transition: opacity .2s, transform .2s;
+  pointer-events: none;
+  z-index: 300;
+  white-space: nowrap;
+  max-width: 90vw;
+  text-align: center;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+#toast.success { background: #166534; }
+#toast.error { background: var(--fail-red); }
+#toast.warning { background: #92400E; }
+
+/* ── LOADING ────────────────────────────────────────────────── */
+#loading {
+  position: fixed;
+  inset: 0;
+  background: var(--red);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+  transition: opacity .3s;
+}
+#loading.hidden { display: none; }
+#loading h1 { color: var(--white); font-size: 22px; font-weight: 700; }
+.spinner {
+  width: 32px; height: 32px;
+  border: 3px solid rgba(255,255,255,.3);
+  border-top-color: var(--white);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── OFFLINE BANNER ─────────────────────────────────────────── */
+#offline-banner {
+  background: #92400E;
+  color: var(--white);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  padding: 3px;
+  display: none;
+}
+#offline-banner.show { display: block; }
+
+/* ── SCROLLBAR STYLING ──────────────────────────────────────── */
+#sieve-section::-webkit-scrollbar { width: 4px; }
+#sieve-section::-webkit-scrollbar-track { background: transparent; }
+#sieve-section::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ── RESPONSIVE ─────────────────────────────────────────────── */
+@media (min-width: 768px) {
+  #header-fields { grid-template-columns: 1fr 1fr 1fr; }
+  #quarry-row { grid-column: 1 / 2; }
+  #product-row { grid-column: 2 / 3; }
+  #type-row { grid-column: 3 / 4; }
+  .sieve-header-row, .sieve-row { grid-template-columns: 60px 1fr 1fr 80px 90px; }
+}
+@media (max-width: 380px) {
+  .sieve-header-row, .sieve-row { grid-template-columns: 44px 1fr 1fr 60px 60px; }
+  .sieve-col-label, .spec-range, .pct-passing { font-size: 10px; }
+}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading">
+  <h1>Gradation Master 5000</h1>
+  <div class="spinner"></div>
+</div>
+
+<!-- AUTH -->
+<div id="auth-screen" class="hidden">
+  <h1>Gradation Master 5000</h1>
+  <p>Sign in with your Microsoft account to access product specifications and submit gradation data.</p>
+  <button id="btn-sign-in">Sign In</button>
+  <p id="auth-status"></p>
+</div>
+
+<!-- OFFLINE BANNER -->
+<div id="offline-banner">⚠ Offline — data will sync when connected</div>
+
+<!-- MAIN APP -->
+<div id="app">
+
+  <!-- HEADER -->
+  <div id="header">
+    <div id="header-top">
+      <div id="app-title">Gradation Master 5000</div>
+      <button id="queue-badge">Queue Empty</button>
+    </div>
+    <div id="header-fields">
+      <div class="header-row" id="quarry-row">
+        <span class="header-label">Quarry</span>
+        <select class="header-input" id="sel-quarry">
+          <option value="">Select...</option>
+        </select>
+      </div>
+      <div class="header-row" id="product-row">
+        <span class="header-label">Product</span>
+        <select class="header-input" id="sel-product">
+          <option value="">Select Product...</option>
+          <option value="__custom__">Custom</option>
+        </select>
+      </div>
+      <div class="header-row" id="type-row">
+        <span class="header-label">Type</span>
+        <select class="header-input" id="sel-type">
+          <option value="Production">Production</option>
+          <option value="Loadout">Loadout</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="header-row">
+        <span class="header-label">Tech</span>
+        <input class="header-input" id="inp-tech" type="text" placeholder="Name">
+      </div>
+      <div class="header-row">
+        <span class="header-label">Date</span>
+        <input class="header-input" id="inp-date" type="date">
+      </div>
+      <div class="header-row">
+        <span class="header-label">Time</span>
+        <input class="header-input" id="inp-time" type="time">
+      </div>
+    </div>
+  </div>
+
+  <!-- SIEVE SECTION -->
+  <div id="sieve-section">
+    <!-- Rendered by JS -->
+  </div>
+
+  <!-- TAB BAR -->
+  <div id="tabbar">
+    <button id="btn-new-tab" title="New Tab">+</button>
+  </div>
+</div>
+
+<!-- POPUPS -->
+
+<!-- Confirm Submit -->
+<div class="overlay hidden" id="overlay-submit">
+  <div class="dialog">
+    <h2>Submit Gradation?</h2>
+    <p>This will upload the test data to the Gradation Master Log and close this tab.</p>
+    <div class="dialog-buttons">
+      <button class="btn-secondary" id="btn-submit-cancel">Cancel</button>
+      <button class="btn-primary" id="btn-submit-confirm">Submit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Delete -->
+<div class="overlay hidden" id="overlay-delete">
+  <div class="dialog">
+    <h2>Delete this gradation?</h2>
+    <p>This cannot be undone. All entered data for this tab will be lost.</p>
+    <div class="dialog-buttons">
+      <button class="btn-secondary" id="btn-delete-cancel">Cancel</button>
+      <button class="btn-danger" id="btn-delete-confirm">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Change Product -->
+<div class="overlay hidden" id="overlay-change-product">
+  <div class="dialog">
+    <h2>Change product?</h2>
+    <p>Changing the product will clear all entered data for this tab. Proceed?</p>
+    <div class="dialog-buttons">
+      <button class="btn-secondary" id="btn-change-cancel">Cancel</button>
+      <button class="btn-danger" id="btn-change-confirm">Change</button>
+    </div>
+  </div>
+</div>
+
+<!-- Custom Product -->
+<div class="overlay hidden" id="overlay-custom">
+  <div class="dialog" id="custom-dialog">
+    <h2>Custom Product</h2>
+    <input class="custom-name-input" id="custom-name" placeholder="Product name" type="text">
+    <div class="section-toggle">
+      <button data-section="Coarse" class="active">Coarse</button>
+      <button data-section="Fine">Fine</button>
+      <button data-section="Both">Both</button>
+    </div>
+    <div class="fine-mode-toggle" id="fine-mode-row" style="display:none">
+      <button data-mode="Washed" class="active">Washed</button>
+      <button data-mode="DryOnly">Dry Only</button>
+    </div>
+    <div class="sieve-picker" id="sieve-picker"></div>
+    <div class="dialog-buttons">
+      <button class="btn-secondary" id="btn-custom-cancel">Cancel</button>
+      <button class="btn-primary" id="btn-custom-confirm">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Result -->
+<div class="overlay hidden" id="overlay-result">
+  <div class="dialog">
+    <h2 id="result-title">Submitted</h2>
+    <p id="result-msg"></p>
+    <div class="dialog-buttons">
+      <button class="btn-primary" id="btn-result-ok">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Queue Screen -->
+<div id="queue-screen" class="hidden">
+  <div id="queue-header">
+    <button id="btn-queue-back">← Back</button>
+    <h1>Pending Queue</h1>
+    <button id="btn-queue-submit-all">Submit All</button>
+  </div>
+  <div id="queue-list">
+    <div id="queue-empty">
+      <p style="font-size:32px">📭</p>
+      <p>No queued gradations</p>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+// ── CONFIG ────────────────────────────────────────────────────
+const CONFIG = {
+  // Replace with your actual values
+  CLIENT_ID: 'YOUR_CLIENT_ID',
+  TENANT_ID: 'YOUR_TENANT_ID',
+  SITE_URL: 'https://YOUR_TENANT.sharepoint.com/sites/Technical_Services',
+  LISTS: {
+    // One row per product (not per sieve).
+    //
+    // Required columns (create these on the SharePoint list):
+    //   Title            Text     Product name (use SharePoint's built-in Title field)
+    //   Quarry           Choice
+    //   ProductID        Text     3-4 digit ERP code, as text (not Number).
+    //                             NOT unique — multiple products can share one,
+    //                             and some products have none at all (blank).
+    //                             Kept only for future Power BI joins, not used
+    //                             as a key anywhere in this app.
+    //   Active           Yes/No   the "hide product" switch
+    //   FineMode         Choice: None / Washed / DryOnly
+    //   CoarseMoisture   Yes/No
+    //   FineMoisture     Yes/No
+    //   DisplayOrder     Number   sort order for the product dropdown
+    //   [one text column per sieve] — see SIEVE_COLUMNS below for the exact
+    //     list of column names to create. Each cell holds a compact spec:
+    //       "45-90"  -> min 45, max 90
+    //       "<12"    -> max 12 only
+    //       ">30"    -> min 30 only
+    //       "100"    -> exactly 100 (min=max=100)
+    //       "*"      -> sieve is used/tested but has no spec band
+    //       (blank)  -> sieve is not used for this product at all
+    //
+    // The app looks up each sieve's order and Coarse/Fine type from its own
+    // fixed reference table (COARSE_SIEVES/FINE_SIEVES below) — you never
+    // need to enter order or type anywhere in the list.
+    //
+    // Product key = Quarry + Title (must be a unique combination).
+    // To add a product: add one row. To hide one: set Active=No.
+    // To delete: delete the row.
+    PRODUCTS: 'Gradation_Products',
+
+    // Submitted test results — one row per gradation test. Required columns:
+    //   Title              Text            auto-filled: "Product — Quarry — Date"
+    //   Quarry             Choice
+    //   Product            Text
+    //   ProductID          Text            copied from the selected product at
+    //                                      submit time; blank for custom products
+    //                                      and for catalog products with no ID
+    //   IsCustomProduct    Yes/No
+    //   SampleType         Choice: Production / Loadout / Other
+    //   Technician         Text            (Person field works too, but Text
+    //                                      avoids requiring techs to have SP accounts)
+    //   SampleDate         Date only (no time)
+    //   SampleTime         Text            stored as "HH:MM", not a real Date/Time
+    //                                      column — avoids timezone-conversion
+    //                                      surprises for a value that's just a label
+    //   Notes              Multiple lines of text
+    //   CoarseMoisturePct  Number (decimals) — computed moisture %, NOT the
+    //   FineMoisturePct    Number (decimals)   same as Products' Yes/No flags
+    //   [one Number column per sieve, name + "_Pct"] — see SIEVE_COLUMNS
+    //     below; same base key as the Products list' spec columns, so e.g.
+    //     Products has "Coarse_3_4in" (the spec) and this list has
+    //     "Coarse_3_4in_Pct" (the result) — same sieve, easy to match up.
+    //
+    // Who submitted it and when are already covered by SharePoint's built-in
+    // Created / Author columns — no need to duplicate those.
+    MASTER_LOG: 'Gradation_Master_Log'
+  }
+};
+
+// ── MASTER SIEVE REFERENCE ────────────────────────────────────
+const COARSE_SIEVES = [
+  { label:'8"',     order:170 }, { label:'6"',     order:160 },
+  { label:'4"',     order:150 }, { label:'3"',     order:140 },
+  { label:'2"',     order:130 }, { label:'1 7/8"', order:125 },
+  { label:'1 1/2"', order:120 }, { label:'1 1/4"', order:110 },
+  { label:'1"',     order:100 }, { label:'3/4"',   order:90  },
+  { label:'5/8"',   order:80  }, { label:'9/16"',  order:75  },
+  { label:'1/2"',   order:70  }, { label:'3/8"',   order:60  },
+  { label:'#4',     order:50  }, { label:'#8',     order:45  },
+  { label:'#10',    order:40  }, { label:'#30',    order:30  },
+  { label:'#40',    order:20  }, { label:'#60',    order:15  },
+  { label:'#200',   order:12  },
+];
+const FINE_SIEVES = [
+  { label:'3/8"',  order:340 }, { label:'#4',   order:330 },
+  { label:'#8',    order:320 }, { label:'#10',  order:310 },
+  { label:'#16',   order:300 }, { label:'#20',  order:290 },
+  { label:'#30',   order:280 }, { label:'#40',  order:270 },
+  { label:'#50',   order:260 }, { label:'#60',  order:250 },
+  { label:'#80',   order:240 }, { label:'#100', order:230 },
+  { label:'#200',  order:220 }, { label:'#325', order:210 },
+];
+
+// ── SIEVE → SHAREPOINT COLUMN MAPPING ──────────────────────────
+// Generates the exact list of SharePoint column names to create, one per
+// sieve, from the master reference above. Single source of truth — the
+// mock data, the SharePoint $select query, and the parsing logic all pull
+// from this same list, so there's nowhere for it to drift out of sync.
+function sieveKey(label, type) {
+  const safe = label.replace(/"/g, 'in').replace(/#/g, 'No').replace(/\//g, '_').replace(/\s+/g, '_');
+  return `${type}_${safe}`;
+}
+const SIEVE_COLUMNS = [
+  ...COARSE_SIEVES.map(s => ({ ...s, type: 'Coarse', key: sieveKey(s.label, 'Coarse') })),
+  ...FINE_SIEVES.map(s => ({ ...s, type: 'Fine', key: sieveKey(s.label, 'Fine') })),
+];
+
+// ── STATE ─────────────────────────────────────────────────────
+let state = {
+  tabs: [],
+  activeTabId: null,
+  productRows: [],  // raw flat rows from the consolidated Gradation_Products list
+  quarries: [],     // derived from productRows
+  products: [],     // derived from productRows
+  queue: [],
+  user: null,
+  token: null,
+  isOnline: navigator.onLine,
+  pendingProductChange: null,
+  customSection: 'Coarse',
+  customFineMode: 'Washed',
+};
+
+// ── INDEXEDDB ─────────────────────────────────────────────────
+let db;
+function openDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open('GradationMaster', 2);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('tabs'))
+        d.createObjectStore('tabs', { keyPath: 'tabId' });
+      if (!d.objectStoreNames.contains('queue'))
+        d.createObjectStore('queue', { keyPath: 'queueId' });
+      if (!d.objectStoreNames.contains('cache'))
+        d.createObjectStore('cache', { keyPath: 'key' });
+      if (!d.objectStoreNames.contains('prefs'))
+        d.createObjectStore('prefs', { keyPath: 'key' });
+    };
+    req.onsuccess = e => { db = e.target.result; res(db); };
+    req.onerror = () => rej(req.error);
+  });
+}
+function dbPut(store, val) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).put(val).onsuccess = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
+}
+function dbGetAll(store) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).getAll();
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+function dbGet(store, key) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).get(key);
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+function dbDelete(store, key) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).delete(key).onsuccess = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
+}
+function dbClear(store) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).clear().onsuccess = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
+}
+
+// ── AUTH (MSAL stub — replace with real MSAL.js) ──────────────
+// In production, load MSAL from CDN and implement real OAuth flow.
+// For offline-capable PWA, cache the token and refresh as needed.
+async function initAuth() {
+  // DEMO MODE: skip auth if no CLIENT_ID configured
+  if (CONFIG.CLIENT_ID === 'YOUR_CLIENT_ID') {
+    state.user = { displayName: 'Demo User' };
+    state.token = null; // No real token — SP calls will use mock data
+    return true;
+  }
+  // Real implementation would use:
+  // const msalInstance = new msal.PublicClientApplication({...})
+  // await msalInstance.initialize()
+  // const accounts = msalInstance.getAllAccounts()
+  // if (accounts.length > 0) { ... acquire token silently }
+  // else { show auth screen, call msalInstance.loginPopup() }
+  return false;
+}
+
+// ── SHAREPOINT API ────────────────────────────────────────────
+async function spGet(listName, query = '') {
+  if (!state.token) return null; // Demo mode
+  const url = `${CONFIG.SITE_URL}/_api/web/lists/getbytitle('${listName}')/items?${query}`;
+  const res = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${state.token}`,
+      'Accept': 'application/json;odata=nometadata',
+    }
+  });
+  if (!res.ok) throw new Error(`SP GET failed: ${res.status}`);
+  const data = await res.json();
+  return data.value;
+}
+async function spGetAll(listName, query = '') {
+  // Follows @odata.nextLink so lists over the default page size (100 items)
+  // still come back complete. Products is one row per product (small — a few
+  // dozen rows); Master Log grows one row per submitted test, so this keeps
+  // working correctly as that list grows over time.
+  if (!state.token) return null; // Demo mode
+  let url = `${CONFIG.SITE_URL}/_api/web/lists/getbytitle('${listName}')/items?${query}${query ? '&' : ''}$top=500`;
+  let results = [];
+  while (url) {
+    const res = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${state.token}`,
+        'Accept': 'application/json;odata=minimalmetadata',
+      }
+    });
+    if (!res.ok) throw new Error(`SP GET failed: ${res.status}`);
+    const data = await res.json();
+    results = results.concat(data.value || []);
+    url = data['odata.nextLink'] || null;
+  }
+  return results;
+}
+async function spPost(listName, body) {
+  if (!state.token) {
+    // Demo mode — simulate success
+    return { ID: Math.floor(Math.random() * 10000) };
+  }
+  const url = `${CONFIG.SITE_URL}/_api/web/lists/getbytitle('${listName}')/items`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${state.token}`,
+      'Accept': 'application/json;odata=nometadata',
+      'Content-Type': 'application/json;odata=nometadata',
+    },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) throw new Error(`SP POST failed: ${res.status}`);
+  return await res.json();
+}
+
+// ── SPEC CELL PARSING ───────────────────────────────────────────
+// Parses the compact text convention used in each sieve column:
+//   "45-90" -> min 45, max 90     "<12" -> max only     ">30" -> min only
+//   "100"   -> exactly 100        "*"   -> used, no spec band
+//   blank / undefined             -> sieve not used by this product at all
+// Returns undefined for "not used" (so callers can distinguish that from
+// {min:null,max:null}, which means "used, no bounds").
+function parseSpecCell(raw) {
+  if (raw === null || raw === undefined) return undefined;
+  const str = String(raw).trim();
+  if (str === '') return undefined;
+  if (str === '*') return { min: null, max: null };
+  let m;
+  if ((m = str.match(/^(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)$/))) return { min: parseFloat(m[1]), max: parseFloat(m[2]) };
+  if ((m = str.match(/^<\s*(\d+(?:\.\d+)?)$/))) return { min: null, max: parseFloat(m[1]) };
+  if ((m = str.match(/^>\s*(\d+(?:\.\d+)?)$/))) return { min: parseFloat(m[1]), max: null };
+  if ((m = str.match(/^(\d+(?:\.\d+)?)$/))) { const v = parseFloat(m[1]); return { min: v, max: v }; }
+  console.warn(`Unrecognized spec cell "${str}" — treating as used with no bounds`);
+  return { min: null, max: null };
+}
+// Walks every sieve column on a product row and builds the sieveData spec
+// list — only sieves with a non-blank cell are included.
+function buildSpecsFromRow(row) {
+  const specs = [];
+  SIEVE_COLUMNS.forEach(col => {
+    const parsed = parseSpecCell(row[col.key]);
+    if (parsed === undefined) return; // not used by this product
+    specs.push({
+      SieveLabel: col.label,
+      SieveType: col.type,
+      SieveOrder: col.order,
+      MinPercent: parsed.min,
+      MaxPercent: parsed.max,
+    });
+  });
+  return specs;
+}
+
+// ── MOCK DATA (used in demo mode) ────────────────────────────
+// One row per product per quarry — shaped exactly like rows from the
+// consolidated Gradation_Products list. See CONFIG.LISTS.PRODUCTS above
+// for the column reference.
+const MOCK_QUARRIES = ['Quarry A', 'Quarry B'];
+
+const MOCK_PRODUCT_DEFS = [
+  { Product: 'Class 5', ProductID: '1005', FineMode: 'Washed', DisplayOrder: 10,
+    coarse: { '1"':'100', '3/4"':'70-100', '1/2"':'*', '3/8"':'45-90', '#4':'30-80' },
+    fine:   { '#10':'15-65', '#40':'7-35', '#200':'3-12' } },
+  { Product: 'Class 6 Con-Bit', ProductID: '1006', FineMode: 'Washed', DisplayOrder: 20,
+    coarse: { '1 1/2"':'100', '3/4"':'70-100', '3/8"':'45-85', '#4':'35-70' },
+    fine:   { '#10':'15-65', '#40':'7-35', '#200':'3-12' } },
+  { Product: '1 1/2" Clear', ProductID: '1150', FineMode: 'None', DisplayOrder: 30,
+    coarse: { '1 1/2"':'100', '3/4"':'70-100', '3/8"':'45-85', '#4':'35-70' } },
+  // Same ProductID (2075) shared across two different bituminous/concrete
+  // variants — matches how the real ERP codes them.
+  { Product: '3/4" Clear - Bituminous', ProductID: '2075', FineMode: 'None', DisplayOrder: 40,
+    coarse: { '3/4"':'100', '3/8"':'45-85', '#4':'35-70' } },
+  { Product: '3/4" Clear - Concrete', ProductID: '2075', FineMode: 'None', DisplayOrder: 50,
+    coarse: { '3/4"':'100', '3/8"':'45-85', '#4':'35-70' } },
+  { Product: '3/8" Clear', ProductID: '2038', FineMode: 'None', DisplayOrder: 60,
+    coarse: { '3/8"':'100', '#4':'35-70' } },
+  { Product: 'Lime Sand', ProductID: '3010', FineMode: 'Washed', DisplayOrder: 70, FineMoisture: true,
+    fine: { '3/8"':'100','#4':'90-100','#8':'45-65','#10':'40-60','#16':'25-50','#20':'20-40',
+             '#30':'15-35','#40':'12-30','#50':'10-25','#80':'5-15','#100':'3-12','#200':'1-3.5' } },
+  { Product: 'Recycle Class 5', ProductID: '4005', FineMode: 'DryOnly', DisplayOrder: 80,
+    coarse: { '1 1/2"':'100', '3/4"':'70-100', '3/8"':'45-85', '#4':'35-70' } },
+  { Product: 'OGAB', ProductID: '4090', FineMode: 'None', DisplayOrder: 90, CoarseMoisture: true,
+    coarse: { '1 1/2"':'100', '3/4"':'70-100', '3/8"':'45-85', '#4':'35-70' } },
+  { Product: '3/4" Minus', FineMode: 'DryOnly', DisplayOrder: 100, // no ProductID — demonstrates a product with none
+    coarse: { '1 1/2"':'100', '3/4"':'70-100', '3/8"':'45-85', '#4':'35-70' } },
+  // Example of a hidden product — won't show up anywhere in the app.
+  { Product: 'Discontinued Test Mix', ProductID: '9999', FineMode: 'None', DisplayOrder: 110, Active: false,
+    coarse: { '3/4"':'100', '#4':'35-70' } },
+];
+
+function mockSieveCells(def) {
+  const cells = {};
+  Object.entries(def.coarse || {}).forEach(([label, val]) => { cells[sieveKey(label, 'Coarse')] = val; });
+  Object.entries(def.fine || {}).forEach(([label, val]) => { cells[sieveKey(label, 'Fine')] = val; });
+  return cells;
+}
+
+const MOCK_PRODUCT_ROWS = [];
+MOCK_QUARRIES.forEach(quarry => {
+  MOCK_PRODUCT_DEFS.forEach(def => {
+    MOCK_PRODUCT_ROWS.push({
+      Quarry: quarry,
+      Product: def.Product,
+      ProductID: def.ProductID || null,
+      Active: def.Active !== false,
+      FineMode: def.FineMode || 'None',
+      CoarseMoisture: !!def.CoarseMoisture,
+      FineMoisture: !!def.FineMoisture,
+      DisplayOrder: def.DisplayOrder,
+      ...mockSieveCells(def),
+    });
+  });
+});
+
+// ── DERIVE QUARRIES / PRODUCTS FROM THE PRODUCT LIST ───────────
+// Everything downstream (dropdowns, spec lookups) still reads
+// state.quarries / state.products the same way it always did — only how
+// they get populated has changed. Each derived product now carries its
+// own pre-parsed `specs` array, so getProductSpecs() is a simple lookup.
+function deriveQuarries(rows) {
+  return [...new Set(rows.filter(r => r.Active).map(r => r.Quarry))].sort();
+}
+function deriveProducts(rows) {
+  return rows
+    .filter(r => r.Active)
+    .map(r => ({
+      Product: r.Product,
+      Quarry: r.Quarry,
+      ProductID: r.ProductID,
+      FineSectionMode: r.FineMode,
+      DisplayOrder: r.DisplayOrder,
+      UsesCoarseInitialWeight: !!r.CoarseMoisture,
+      UsesFineInitialWeight: !!r.FineMoisture,
+      specs: buildSpecsFromRow(r),
+    }));
+}
+
+// ── TAB MANAGEMENT ────────────────────────────────────────────
+function createTab(defaults = {}) {
+  return {
+    tabId: crypto.randomUUID(),
+    tabLabel: defaults.tabLabel || 'New',
+    quarry: defaults.quarry || (state.quarries[0] || ''),
+    product: defaults.product || '',
+    productId: defaults.productId || null,
+    isCustomProduct: defaults.isCustomProduct || false,
+    customFineSectionMode: defaults.customFineSectionMode || '',
+    sampleType: defaults.sampleType || 'Production',
+    technician: defaults.technician || (state.user?.displayName || ''),
+    sampleDate: defaults.sampleDate || new Date().toISOString().split('T')[0],
+    sampleTime: defaults.sampleTime || new Date().toTimeString().slice(0,5),
+    notes: defaults.notes || '',
+    sieveData: [],
+    initialWeight: null,
+    fineInitialWeight: null,
+    dryWeight: null,
+    washedDryWeight: null,
+    lastModified: new Date().toISOString(),
+  };
+}
+
+function createSieveRow(label, type, order, min, max) {
+  return {
+    sieveLabel: label,
+    sieveType: type,
+    sieveOrder: order,
+    minPercent: min,
+    maxPercent: max,
+    cumulative: null,
+    individual: null,
+    isUserEnteredIndividual: false,
+    isTouched: false,
+  };
+}
+
+async function saveTab(tab) {
+  tab.lastModified = new Date().toISOString();
+  await dbPut('tabs', tab);
+}
+
+async function deleteTabFromDB(tabId) {
+  await dbDelete('tabs', tabId);
+}
+
+// ── MATH ──────────────────────────────────────────────────────
+function calcTotalWeight(sieveData, type) {
+  return sieveData
+    .filter(r => r.sieveType === type && r.isTouched && r.individual !== null && !isNaN(r.individual))
+    .reduce((s, r) => s + r.individual, 0);
+}
+function calcLossByWash(tab) {
+  if (!tab.dryWeight || !tab.washedDryWeight) return 0;
+  return tab.dryWeight - tab.washedDryWeight;
+}
+function calcTotalFineWeight(tab) {
+  const sieveSum = calcTotalWeight(tab.sieveData, 'Fine');
+  const fineSectionMode = getFineSectionMode(tab);
+  const lossByWash = (fineSectionMode === 'Washed' && tab.dryWeight && tab.washedDryWeight)
+    ? calcLossByWash(tab)
+    : 0;
+  return sieveSum + lossByWash;
+}
+function getFineSectionMode(tab) {
+  if (tab.isCustomProduct) return tab.customFineSectionMode || 'None';
+  const prod = state.products.find(p => p.Product === tab.product);
+  return prod?.FineSectionMode || 'None';
+}
+function hasCoarseSieves(tab) {
+  return tab.sieveData.some(r => r.sieveType === 'Coarse');
+}
+function hasFineSieves(tab) {
+  return tab.sieveData.some(r => r.sieveType === 'Fine');
+}
+function allSievesTouched(tab, type) {
+  // % passing only shows once every sieve AND Pan for this section have data.
+  const rows = tab.sieveData.filter(r => r.sieveType === type);
+  if (rows.length === 0) return false;
+  return rows.every(r => r.isTouched && r.individual !== null && !isNaN(r.individual));
+}
+function calcPctPassing(tab, row) {
+  const type = row.sieveType;
+  const totalWeight = type === 'Coarse'
+    ? calcTotalWeight(tab.sieveData, 'Coarse')
+    : calcTotalFineWeight(tab);
+  if (!totalWeight) return null;
+  if (!allSievesTouched(tab, type)) return null;
+  const sortedRows = tab.sieveData
+    .filter(r => r.sieveType === type)
+    .sort((a, b) => b.sieveOrder - a.sieveOrder);
+  const retainedAbove = sortedRows
+    .filter(r => r.sieveOrder >= row.sieveOrder)
+    .reduce((s, r) => s + (r.individual !== null && !isNaN(r.individual) ? r.individual : 0), 0);
+  let rawPct = Math.round(((totalWeight - retainedAbove) / totalWeight * 100) * 10) / 10;
+  // Apply MNDOT 1203 Fine scaling if both sections present
+  if (type === 'Fine' && hasCoarseSieves(tab)) {
+    const coarseRows = tab.sieveData
+      .filter(r => r.sieveType === 'Coarse')
+      .sort((a, b) => a.sieveOrder - b.sieveOrder);
+    const lastCoarse = coarseRows.find(r => r.sieveLabel !== 'Pan' && r.isTouched);
+    if (lastCoarse) {
+      const coarseTotal = calcTotalWeight(tab.sieveData, 'Coarse');
+      if (coarseTotal) {
+        const coarseRows2 = tab.sieveData.filter(r => r.sieveType === 'Coarse');
+        const retainedAboveCoarse = coarseRows2
+          .filter(r => r.sieveOrder >= lastCoarse.sieveOrder)
+          .reduce((s, r) => s + (r.individual !== null && !isNaN(r.individual) ? r.individual : 0), 0);
+        const lastCoarsePct = Math.round(((coarseTotal - retainedAboveCoarse) / coarseTotal * 100) * 10) / 10;
+        rawPct = Math.round((rawPct * lastCoarsePct / 100) * 10) / 10;
+      }
+    }
+  }
+  return rawPct;
+}
+function calcMoisture(initialWeight, dryWeight) {
+  if (!initialWeight || !dryWeight) return null;
+  return Math.round(((initialWeight - dryWeight) / initialWeight * 100) * 100) / 100;
+}
+
+// ── SIEVE DATA OPERATIONS ─────────────────────────────────────
+function onCumulativeChange(tab, row, value) {
+  const val = value === '' ? null : parseFloat(value);
+  // Sort descending by SieveOrder (top sieve first = highest SieveOrder first)
+  const sortedRows = tab.sieveData
+    .filter(r => r.sieveType === row.sieveType)
+    .sort((a, b) => b.sieveOrder - a.sieveOrder);
+  const idx = sortedRows.findIndex(r => r.sieveLabel === row.sieveLabel && r.sieveType === row.sieveType);
+  row.cumulative = val;
+  row.isUserEnteredIndividual = false;
+  row.isTouched = val !== null && !isNaN(val);
+  if (val === null || isNaN(val)) {
+    row.individual = null;
+    row.isTouched = false;
+  } else if (idx === 0) {
+    // Top sieve: individual = cumulative
+    row.individual = val;
+  } else {
+    // Individual = this cumulative minus the cumulative of the row above (idx - 1)
+    const rowAbove = sortedRows[idx - 1];
+    row.individual = rowAbove.cumulative !== null && !isNaN(rowAbove.cumulative)
+      ? Math.round((val - rowAbove.cumulative) * 1000) / 1000
+      : val;
+  }
+}
+function onIndividualChange(tab, row, value) {
+  const val = value === '' ? null : parseFloat(value);
+  row.individual = val;
+  row.isUserEnteredIndividual = val !== null;
+  row.isTouched = val !== null;
+  if (val === null) {
+    row.cumulative = null;
+  } else {
+    row.cumulative = null; // Clear cumulative when individual is directly entered
+  }
+}
+function isCumulativeLocked(tab, row) {
+  const sortedRows = tab.sieveData
+    .filter(r => r.sieveType === row.sieveType)
+    .sort((a, b) => b.sieveOrder - a.sieveOrder);
+  const idx = sortedRows.findIndex(r => r.sieveLabel === row.sieveLabel && r.sieveType === row.sieveType);
+  // Cumulative is locked if any row ABOVE this one (higher SieveOrder) has direct individual entry
+  return sortedRows.slice(0, idx).some(r => r.isUserEnteredIndividual);
+}
+
+// ── IN-PLACE UPDATE (preserves focus) ────────────────────────
+function updateSieveDisplays(tab) {
+  // Update individual input values in-place without re-rendering
+  document.querySelectorAll('.sieve-input[data-field="individual"]').forEach(input => {
+    const { label, type } = input.dataset;
+    const row = tab.sieveData.find(r => r.sieveLabel === label && r.sieveType === type);
+    if (!row) return;
+    // Only update if not currently focused (don't interrupt user typing)
+    if (document.activeElement !== input) {
+      input.value = row.individual !== null && !isNaN(row.individual) ? row.individual : '';
+    }
+    // Update classes
+    input.className = 'sieve-input' +
+      (row.isUserEnteredIndividual ? '' : (row.isTouched ? ' auto-calc' : '')) +
+      (row.individual !== null && !isNaN(row.individual) && row.individual < 0 ? ' negative' : '');
+  });
+  // Update % passing displays
+  document.querySelectorAll('.pct-passing').forEach(el => {
+    const label = el.dataset.label;
+    const type = el.dataset.type;
+    if (!label || !type) return;
+    const row = tab.sieveData.find(r => r.sieveLabel === label && r.sieveType === type);
+    if (!row || row.sieveLabel === 'Pan') return;
+    const pct = calcPctPassing(tab, row);
+    const inSpec = pct !== null && row.minPercent !== null && row.maxPercent !== null && pct >= row.minPercent && pct <= row.maxPercent;
+    const outSpec = pct !== null && row.minPercent !== null && row.maxPercent !== null && (pct < row.minPercent || pct > row.maxPercent);
+    el.textContent = pct !== null ? pct + '%' : '';
+    el.className = 'pct-passing' + (inSpec ? ' in-spec' : outSpec ? ' out-spec' : '');
+  });
+  // Update total weights
+  const coarseTotal = calcTotalWeight(tab.sieveData, 'Coarse');
+  const fineTotal = calcTotalFineWeight(tab);
+  document.querySelectorAll('.total-value').forEach(el => {
+    if (el.dataset.type === 'Coarse') el.textContent = coarseTotal > 0 ? coarseTotal.toFixed(1) : '';
+    if (el.dataset.type === 'Fine') el.textContent = fineTotal > 0 ? fineTotal.toFixed(1) : '';
+  });
+}
+
+// ── RENDER ────────────────────────────────────────────────────
+function getActiveTab() {
+  return state.tabs.find(t => t.tabId === state.activeTabId);
+}
+
+function renderTabs() {
+  const tabbar = document.getElementById('tabbar');
+  const newBtn = document.getElementById('btn-new-tab');
+  // Remove old tab buttons
+  tabbar.querySelectorAll('.tab-btn').forEach(b => b.remove());
+  state.tabs.forEach(tab => {
+    const btn = document.createElement('button');
+    btn.className = 'tab-btn' + (tab.tabId === state.activeTabId ? ' active' : '');
+    btn.textContent = tab.tabLabel;
+    btn.dataset.tabId = tab.tabId;
+    btn.addEventListener('click', () => switchTab(tab.tabId));
+    tabbar.insertBefore(btn, newBtn);
+  });
+  // Scroll active tab into view
+  const activeBtn = tabbar.querySelector('.tab-btn.active');
+  if (activeBtn) activeBtn.scrollIntoView({ inline: 'nearest', behavior: 'smooth' });
+}
+
+function renderHeader() {
+  const tab = getActiveTab();
+  if (!tab) return;
+  // Quarry
+  const selQ = document.getElementById('sel-quarry');
+  selQ.innerHTML = state.quarries.map(q => `<option value="${q}">${q}</option>`).join('');
+  selQ.value = tab.quarry;
+  // Product
+  renderProductDropdown(tab);
+  document.getElementById('sel-type').value = tab.sampleType;
+  document.getElementById('inp-tech').value = tab.technician;
+  document.getElementById('inp-date').value = tab.sampleDate;
+  document.getElementById('inp-time').value = tab.sampleTime;
+}
+
+function renderProductDropdown(tab) {
+  const sel = document.getElementById('sel-product');
+  const quarryProducts = state.products
+    .filter(p => p.Quarry === tab.quarry && p.DisplayOrder != null)
+    .sort((a, b) => a.DisplayOrder - b.DisplayOrder);
+  sel.innerHTML = `<option value="">Select Product...</option>`;
+  quarryProducts.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.Product;
+    opt.textContent = p.Product;
+    sel.appendChild(opt);
+  });
+  sel.innerHTML += `<option value="__custom__">Custom</option>`;
+  sel.value = tab.isCustomProduct ? '__custom__' : (tab.product || '');
+}
+
+// ── FOCUS PRESERVATION ───────────────────────────────────────
+// renderSieveSection() rebuilds the sieve DOM from scratch on every blur
+// (to refresh spec highlighting, locked fields, totals, etc). Left alone,
+// that wipes focus mid-tab: the browser moves focus to the next field
+// natively, then the previous field's 'change' handler finishes its async
+// save and re-renders, destroying the very element the user just tabbed
+// into. These two helpers snapshot which field is focused before the
+// rebuild and restore focus to its replacement afterward.
+function captureFocusInfo(section) {
+  const el = document.activeElement;
+  if (!el || !section.contains(el)) return null;
+  if (el.matches?.('.sieve-input[data-field]')) {
+    return { kind: 'sieve', label: el.dataset.label, type: el.dataset.type, field: el.dataset.field };
+  }
+  if (el.id) return { kind: 'id', id: el.id };
+  return null;
+}
+function restoreFocusInfo(info) {
+  if (!info) return;
+  let el = null;
+  if (info.kind === 'sieve') {
+    el = Array.from(document.querySelectorAll('.sieve-input[data-field]')).find(x =>
+      x.dataset.label === info.label && x.dataset.type === info.type && x.dataset.field === info.field);
+  } else if (info.kind === 'id') {
+    el = document.getElementById(info.id);
+  }
+  if (el) el.focus();
+}
+
+function renderSieveSection() {
+  const tab = getActiveTab();
+  const section = document.getElementById('sieve-section');
+  if (!tab) { section.innerHTML = ''; return; }
+  const focusInfo = captureFocusInfo(section);
+  let html = '';
+  const fineSectionMode = getFineSectionMode(tab);
+  const showCoarse = hasCoarseSieves(tab);
+  const showFine = hasFineSieves(tab) && fineSectionMode !== 'None';
+
+  // Custom product name edit
+  if (tab.isCustomProduct) {
+    html += `<div class="weight-row">
+      <span class="weight-label">Product Name:</span>
+      <input class="weight-input" id="inp-custom-name" type="text" value="${esc(tab.tabLabel)}" style="width:200px">
+    </div>`;
+  }
+
+  if (showCoarse) {
+    const coarseRows = tab.sieveData
+      .filter(r => r.sieveType === 'Coarse')
+      .sort((a, b) => b.sieveOrder - a.sieveOrder);
+    const totalCoarse = calcTotalWeight(tab.sieveData, 'Coarse');
+    const prod = state.products.find(p => p.Product === tab.product);
+    const showInitialWeight = tab.isCustomProduct || prod?.UsesCoarseInitialWeight;
+    if (showInitialWeight) {
+      const moisture = calcMoisture(tab.initialWeight, totalCoarse || null);
+      html += `<div class="section-label">Coarse Sieves</div>
+      <div class="weight-row">
+        <span class="weight-label">Initial Weight:</span>
+        <input class="weight-input" id="inp-initial-weight" type="number" inputmode="decimal" value="${tab.initialWeight ?? ''}" placeholder="">
+        ${moisture !== null ? `<span class="weight-computed${moisture < 0 ? ' red':''}">${moisture}% moisture</span>` : ''}
+      </div>`;
+    } else {
+      html += `<div class="section-label">Coarse Sieves</div>`;
+    }
+    html += renderSieveTable(tab, coarseRows, 'Coarse', totalCoarse);
+    html += `<div class="weight-row" style="padding-left:22px;padding-right:22px;margin-top:2px">
+      <span class="weight-label">Total Coarse Weight:</span>
+      <span class="total-value" data-type="Coarse" style="font-family:var(--font-data);font-size:13px;color:var(--text-sub)">${totalCoarse > 0 ? totalCoarse.toFixed(1) : ''}</span>
+    </div>`;
+  }
+
+  if (showFine) {
+    const fineRows = tab.sieveData
+      .filter(r => r.sieveType === 'Fine')
+      .sort((a, b) => b.sieveOrder - a.sieveOrder);
+    const totalFine = calcTotalFineWeight(tab);
+    const lossByWash = fineSectionMode === 'Washed' ? calcLossByWash(tab) : 0;
+    const prod = state.products.find(p => p.Product === tab.product);
+    const showFineInitial = tab.isCustomProduct || prod?.UsesFineInitialWeight;
+    html += `<div class="section-label">Fine Sieves</div>`;
+    if (showFineInitial) {
+      const fineMoisture = calcMoisture(tab.fineInitialWeight, tab.dryWeight);
+      html += `<div class="weight-row">
+        <span class="weight-label">Initial Weight:</span>
+        <input class="weight-input" id="inp-fine-initial-weight" type="number" inputmode="decimal" value="${tab.fineInitialWeight ?? ''}" placeholder="">
+        ${fineMoisture !== null ? `<span class="weight-computed${fineMoisture < 0 ? ' red':''}">${fineMoisture}% moisture</span>` : ''}
+      </div>`;
+    }
+    html += `<div class="weight-row">
+      <span class="weight-label">Dry Weight:</span>
+      <input class="weight-input" id="inp-dry-weight" type="number" inputmode="decimal" value="${tab.dryWeight ?? ''}" placeholder="">
+    </div>`;
+    if (fineSectionMode === 'Washed') {
+      html += `<div class="weight-row">
+        <span class="weight-label">Washed Dry Weight:</span>
+        <input class="weight-input" id="inp-washed-dry" type="number" inputmode="decimal" value="${tab.washedDryWeight ?? ''}" placeholder="">
+      </div>`;
+    }
+    html += renderSieveTable(tab, fineRows, 'Fine', totalFine);
+    if (fineSectionMode === 'Washed' && tab.dryWeight && tab.washedDryWeight) {
+      const lbw = calcLossByWash(tab);
+      html += `<div class="weight-row" style="padding-left:22px;padding-right:22px;margin-top:2px">
+        <span class="weight-label">Loss by Wash:</span>
+        <span style="font-family:var(--font-data);font-size:13px;color:var(--text-sub)">${lbw.toFixed(2)}</span>
+      </div>`;
+    }
+    {
+      const lossCheckPct = (fineSectionMode === 'Washed' && tab.dryWeight && totalFine > 0)
+        ? Math.round(((totalFine - (tab.washedDryWeight || 0)) / tab.dryWeight * 100) * 100) / 100
+        : null;
+      const lossStr = lossCheckPct !== null
+        ? ` <span class="total-losscheck" style="font-size:11px;font-weight:500;color:${Math.abs(lossCheckPct) > 0.3 ? 'var(--fail-red)' : 'var(--steel)'}">(${lossCheckPct >= 0 ? '+' : ''}${lossCheckPct}%)</span>`
+        : '';
+      html += `<div class="weight-row" style="padding-left:22px;padding-right:22px;margin-top:2px">
+        <span class="weight-label">Total Fine Weight:</span>
+        <span class="total-value" data-type="Fine" style="font-family:var(--font-data);font-size:13px;color:var(--text-sub)">${totalFine > 0 ? totalFine.toFixed(1) : ''}</span>${lossStr}
+      </div>`;
+    }
+  }
+
+  // Notes + actions — always show delete, only show submit when product selected.
+  // #sieve-content wraps everything above; it flex-grows to fill any leftover
+  // vertical space so #notes-section (with Submit/Delete) sits pinned to the
+  // bottom of the visible area when content is short, and simply scrolls
+  // into view like everything else when content overflows.
+  const hasData = tab.product && (showCoarse || showFine);
+  const notesHtml = `<div id="notes-section">
+    ${hasData ? `<textarea id="notes-input" placeholder="Notes">${esc(tab.notes)}</textarea>` : ''}
+    <div id="action-row">
+      ${hasData ? `<button id="btn-submit">Submit</button>` : '<span style="flex:1"></span>'}
+      <button id="btn-delete" title="Delete tab">🗑</button>
+    </div>
+  </div>`;
+
+  section.innerHTML = `<div id="sieve-content">${html}</div>${notesHtml}`;
+  // Delete is always visible — bind regardless of product selection
+  const deleteBtn = document.getElementById('btn-delete');
+  if (deleteBtn) deleteBtn.addEventListener('click', () => showOverlay('overlay-delete'));
+  bindSieveEvents(tab);
+  restoreFocusInfo(focusInfo);
+}
+
+function renderSieveTable(tab, rows, type, totalWeight) {
+  let html = `<div class="sieve-table">
+    <div class="sieve-header-row">
+      <span class="sieve-col-label">Sieve</span>
+      <span class="sieve-col-label">Cumulative</span>
+      <span class="sieve-col-label">Individual</span>
+      <span class="sieve-col-label">% Pass</span>
+      <span class="sieve-col-label">Spec</span>
+    </div>`;
+  rows.forEach(row => {
+    const isPan = row.sieveLabel === 'Pan';
+    const pct = isPan ? null : calcPctPassing(tab, row);
+    const locked = isCumulativeLocked(tab, row);
+    const inSpec = pct !== null && row.minPercent !== null && row.maxPercent !== null
+      && pct >= row.minPercent && pct <= row.maxPercent;
+    const outSpec = pct !== null && row.minPercent !== null && row.maxPercent !== null
+      && (pct < row.minPercent || pct > row.maxPercent);
+    const rowClass = isPan ? 'sieve-row pan-row' : `sieve-row${inSpec ? ' in-spec' : outSpec ? ' out-spec' : ''}`;
+    const specLabel = formatSpec(row.minPercent, row.maxPercent);
+    const cumVal = row.cumulative !== null ? row.cumulative : '';
+    const indVal = row.individual !== null ? row.individual : '';
+    const indClass = `sieve-input${row.isUserEnteredIndividual ? '' : (row.isTouched ? ' auto-calc' : '')}${(row.individual !== null && row.individual < 0) ? ' negative' : ''}`;
+    html += `<div class="${rowClass}">
+      <span class="sieve-name">${row.sieveLabel}</span>
+      <input class="sieve-input" type="number" inputmode="decimal"
+        data-label="${esc(row.sieveLabel)}" data-type="${type}" data-field="cumulative"
+        value="${cumVal}" ${locked ? 'disabled' : ''}>
+      <input class="${indClass}" type="number" inputmode="decimal"
+        data-label="${esc(row.sieveLabel)}" data-type="${type}" data-field="individual"
+        value="${indVal}">
+      <span class="pct-passing${inSpec ? ' in-spec' : outSpec ? ' out-spec' : ''}" data-label="${esc(row.sieveLabel)}" data-type="${type}">${isPan || pct === null ? '' : pct + '%'}</span>
+      <span class="spec-range">${isPan ? '' : specLabel}</span>
+    </div>`;
+  });
+  html += '</div>';
+  return html;
+}
+
+function formatSpec(min, max) {
+  if (min === null && max === null) return '';
+  if (min === null) return `< ${max}`;
+  if (max === null) return min === 100 ? '100' : `> ${min}`;
+  if (min === 100 && max === 100) return '100';
+  return `${min} - ${max}`;
+}
+
+function esc(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function bindSieveEvents(tab) {
+  // Sieve inputs
+  document.querySelectorAll('.sieve-input[data-field]').forEach(input => {
+    // 'input' event: update state and re-render live (no save yet)
+    input.addEventListener('input', (e) => {
+      const { label, type, field } = e.target.dataset;
+      const row = tab.sieveData.find(r => r.sieveLabel === label && r.sieveType === type);
+      if (!row) return;
+      if (field === 'cumulative') onCumulativeChange(tab, row, e.target.value);
+      else onIndividualChange(tab, row, e.target.value);
+      // Re-render only the sieve table portion for live feedback without full re-render
+      // Full re-render would kill focus, so we update values in-place
+      updateSieveDisplays(tab);
+    });
+    // 'change' event (blur): save to IndexedDB
+    input.addEventListener('change', async (e) => {
+      const { label, type, field } = e.target.dataset;
+      const row = tab.sieveData.find(r => r.sieveLabel === label && r.sieveType === type);
+      if (!row) return;
+      if (field === 'cumulative') onCumulativeChange(tab, row, e.target.value);
+      else onIndividualChange(tab, row, e.target.value);
+      await saveTab(tab);
+      renderSieveSection();
+      renderTabs();
+    });
+    // Keyboard enter moves to next input
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const field = e.target.dataset.field;
+        const type = e.target.dataset.type;
+        const allInputs = Array.from(document.querySelectorAll(
+          `.sieve-input[data-field="${field}"][data-type="${type}"]:not(:disabled)`
+        ));
+        const idx = allInputs.indexOf(e.target);
+        if (idx >= 0 && idx < allInputs.length - 1) {
+          allInputs[idx + 1].focus();
+          allInputs[idx + 1].select();
+        }
+      }
+    });
+  });
+
+  // Weight inputs
+  const weightInputs = {
+    'inp-initial-weight': (v) => { tab.initialWeight = v ? parseFloat(v) : null; },
+    'inp-fine-initial-weight': (v) => { tab.fineInitialWeight = v ? parseFloat(v) : null; },
+    'inp-dry-weight': (v) => { tab.dryWeight = v ? parseFloat(v) : null; },
+    'inp-washed-dry': (v) => { tab.washedDryWeight = v ? parseFloat(v) : null; },
+  };
+  Object.entries(weightInputs).forEach(([id, setter]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('change', async (e) => {
+      setter(e.target.value);
+      await saveTab(tab);
+      renderSieveSection();
+    });
+  });
+
+  // Notes
+  const notesEl = document.getElementById('notes-input');
+  if (notesEl) {
+    notesEl.addEventListener('input', (e) => { tab.notes = e.target.value; });
+    notesEl.addEventListener('change', async () => { await saveTab(tab); });
+  }
+
+  // Custom name
+  const customNameEl = document.getElementById('inp-custom-name');
+  if (customNameEl) {
+    customNameEl.addEventListener('change', async (e) => {
+      tab.tabLabel = e.target.value;
+      tab.product = e.target.value;
+      await saveTab(tab);
+      renderTabs();
+    });
+  }
+
+  // Submit
+  const submitBtn = document.getElementById('btn-submit');
+  if (submitBtn) submitBtn.addEventListener('click', () => showOverlay('overlay-submit'));
+}
+
+// ── QUEUE ─────────────────────────────────────────────────────
+function updateQueueBadge() {
+  const badge = document.getElementById('queue-badge');
+  if (state.queue.length === 0) {
+    badge.textContent = 'Queue Empty';
+    badge.classList.remove('has-items');
+  } else {
+    badge.textContent = `Queue: ${state.queue.length}`;
+    badge.classList.add('has-items');
+  }
+}
+
+function renderQueueScreen() {
+  const list = document.getElementById('queue-list');
+  const empty = document.getElementById('queue-empty');
+  list.querySelectorAll('.queue-item').forEach(el => el.remove());
+  if (state.queue.length === 0) {
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+  state.queue.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'queue-item';
+    div.innerHTML = `
+      <div class="queue-item-header">
+        <div class="queue-item-info">
+          <h3>${esc(item.Product)} — ${esc(item.Quarry)}</h3>
+          <p>${esc(item.Technician)} · ${esc(item.SampleDate)} ${esc(item.SampleTime)}</p>
+        </div>
+        <div class="queue-item-actions">
+          <button class="btn-expand">▼ Details</button>
+          <button class="btn-queue-delete" data-id="${item.queueId}">Delete</button>
+        </div>
+      </div>
+      <div class="queue-item-detail">
+        ${buildDetailText(item)}
+      </div>`;
+    div.querySelector('.btn-expand').addEventListener('click', (e) => {
+      const detail = div.querySelector('.queue-item-detail');
+      const btn = e.target;
+      detail.classList.toggle('open');
+      btn.textContent = detail.classList.contains('open') ? '▲ Hide' : '▼ Details';
+    });
+    div.querySelector('.btn-queue-delete').addEventListener('click', async (e) => {
+      const id = e.target.dataset.id;
+      state.queue = state.queue.filter(q => q.queueId !== id);
+      await dbDelete('queue', id);
+      renderQueueScreen();
+      updateQueueBadge();
+    });
+    list.appendChild(div);
+  });
+}
+
+function buildDetailText(item) {
+  const fields = [
+    'In8_Coarse','In6_Coarse','In4_Coarse','In3_Coarse','In2_Coarse',
+    'In1pt5_Coarse','In1pt25_Coarse','In1_Coarse','In0pt75_Coarse',
+    'In0pt625_Coarse','In0pt5_Coarse','In0pt375_Coarse',
+    'No4_Coarse','No10_Coarse','No30_Coarse','No40_Coarse',
+    'In0pt375_Fine','No4_Fine','No8_Fine','No10_Fine','No16_Fine',
+    'No20_Fine','No30_Fine','No40_Fine','No50_Fine','No60_Fine',
+    'No80_Fine','No100_Fine','No200_Fine','No325_Fine',
+  ];
+  const lines = [];
+  fields.forEach(f => {
+    const key = f + '_PctPassing';
+    if (item[key] !== null && item[key] !== undefined) {
+      lines.push(`${f.replace('_',' ')}: ${item[key]}%`);
+    }
+  });
+  if (item.CoarseMoisture) lines.push(`Coarse Moisture: ${item.CoarseMoisture}%`);
+  if (item.FineMoisture) lines.push(`Fine Moisture: ${item.FineMoisture}%`);
+  if (item.Notes) lines.push(`Notes: ${item.Notes}`);
+  return lines.join('<br>') || 'No data';
+}
+
+// ── SUBMIT ────────────────────────────────────────────────────
+async function doSubmit() {
+  const tab = getActiveTab();
+  if (!tab) return;
+  showOverlay(null);
+  const record = buildSubmissionRecord(tab);
+  let success = false;
+  if (state.isOnline) {
+    try {
+      await spPost(CONFIG.LISTS.MASTER_LOG, record);
+      success = true;
+    } catch (e) {
+      console.error('Submit failed:', e);
+    }
+  }
+  if (!success) {
+    record.queueId = crypto.randomUUID();
+    state.queue.push(record);
+    await dbPut('queue', record);
+    updateQueueBadge();
+    showResult(false, state.isOnline
+      ? 'Upload failed — gradation saved locally and will sync when back online.'
+      : 'Offline — gradation saved locally and will upload automatically when back online.');
+  } else {
+    showResult(true, 'Gradation submitted successfully.');
+  }
+  // Remove tab
+  await deleteTabFromDB(tab.tabId);
+  state.tabs = state.tabs.filter(t => t.tabId !== tab.tabId);
+  if (state.tabs.length === 0) await addNewTab();
+  else state.activeTabId = state.tabs[0].tabId;
+  renderAll();
+}
+
+function buildSubmissionRecord(tab) {
+  const coarseTotal = calcTotalWeight(tab.sieveData, 'Coarse');
+  const fineTotal = calcTotalFineWeight(tab);
+  const fineSectionMode = getFineSectionMode(tab);
+  const rec = {
+    Title: `${tab.product || 'Custom'} — ${tab.quarry} — ${tab.sampleDate}`,
+    Quarry: tab.quarry,
+    Product: tab.product,
+    ProductID: tab.productId ?? null,
+    IsCustomProduct: tab.isCustomProduct,
+    SampleType: tab.sampleType,
+    Technician: tab.technician,
+    SampleDate: tab.sampleDate,
+    SampleTime: tab.sampleTime,
+    Notes: tab.notes || null,
+    CoarseMoisturePct: calcMoisture(tab.initialWeight, coarseTotal) ?? null,
+    FineMoisturePct: calcMoisture(tab.fineInitialWeight, tab.dryWeight) ?? null,
+  };
+  // %-passing columns — same SIEVE_COLUMNS master list used to build the
+  // Products list, so the two lists' sieve column names always stay in sync.
+  tab.sieveData.forEach(row => {
+    if (row.sieveLabel === 'Pan') return;
+    const col = SIEVE_COLUMNS.find(c => c.label === row.sieveLabel && c.type === row.sieveType);
+    if (col) {
+      const pct = calcPctPassing(tab, row);
+      rec[col.key + '_Pct'] = pct !== null ? pct : 0;
+    }
+  });
+  return rec;
+}
+
+async function flushQueue() {
+  if (!state.isOnline || state.queue.length === 0) return 0;
+  let success = 0;
+  for (const item of [...state.queue]) {
+    try {
+      await spPost(CONFIG.LISTS.MASTER_LOG, item);
+      state.queue = state.queue.filter(q => q.queueId !== item.queueId);
+      await dbDelete('queue', item.queueId);
+      success++;
+    } catch (e) {
+      console.error('Queue flush item failed:', e);
+    }
+  }
+  updateQueueBadge();
+  return success;
+}
+
+// ── OVERLAYS ──────────────────────────────────────────────────
+function showOverlay(id) {
+  document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden'));
+  if (id) document.getElementById(id)?.classList.remove('hidden');
+}
+function showResult(success, msg) {
+  document.getElementById('result-title').textContent = success ? '✓ Submitted' : '📥 Saved Locally';
+  document.getElementById('result-msg').textContent = msg;
+  showOverlay('overlay-result');
+}
+
+// ── CUSTOM PRODUCT ────────────────────────────────────────────
+function renderCustomPicker() {
+  const picker = document.getElementById('sieve-picker');
+  const section = state.customSection;
+  let html = '';
+  if (section === 'Coarse' || section === 'Both') {
+    html += `<div class="picker-section-label">Coarse Sieves</div>`;
+    COARSE_SIEVES.forEach(s => {
+      html += `<label class="picker-sieve-row">
+        <input type="checkbox" data-label="${esc(s.label)}" data-type="Coarse" data-order="${s.order}">
+        <span class="picker-sieve-label">${s.label}</span>
+      </label>`;
+    });
+  }
+  if (section === 'Fine' || section === 'Both') {
+    html += `<div class="picker-section-label">Fine Sieves</div>`;
+    FINE_SIEVES.forEach(s => {
+      html += `<label class="picker-sieve-row">
+        <input type="checkbox" data-label="${esc(s.label)}" data-type="Fine" data-order="${s.order}">
+        <span class="picker-sieve-label">${s.label}</span>
+      </label>`;
+    });
+  }
+  picker.innerHTML = html;
+}
+
+function confirmCustomProduct() {
+  const name = document.getElementById('custom-name').value.trim();
+  if (!name) { toast('Enter a product name', 'error'); return; }
+  const checked = document.querySelectorAll('#sieve-picker input[type=checkbox]:checked');
+  const tab = getActiveTab();
+  if (!tab) return;
+  // Assign unique tab label
+  tab.tabLabel = assignTabLabel(name);
+  tab.product = name;
+  tab.productId = null; // custom products never carry a ProductID
+  tab.isCustomProduct = true;
+  tab.customFineSectionMode = (state.customSection === 'Fine' || state.customSection === 'Both')
+    ? state.customFineMode
+    : 'None';
+  tab.sieveData = [];
+  checked.forEach(cb => {
+    tab.sieveData.push(createSieveRow(cb.dataset.label, cb.dataset.type, parseInt(cb.dataset.order), null, null));
+  });
+  // Add Pan rows
+  if (state.customSection === 'Coarse' || state.customSection === 'Both') {
+    tab.sieveData.push(createSieveRow('Pan', 'Coarse', 10, null, null));
+  }
+  if (state.customSection === 'Fine' || state.customSection === 'Both') {
+    tab.sieveData.push(createSieveRow('Pan', 'Fine', 200, null, null));
+  }
+  showOverlay(null);
+  saveTab(tab);
+  renderAll();
+}
+
+// ── TAB LABEL DEDUP ──────────────────────────────────────────
+function assignTabLabel(baseName) {
+  const existing = state.tabs.map(t => t.tabLabel).filter(l =>
+    l === baseName || l.startsWith(baseName + ' - ')
+  );
+  if (existing.length === 0) return baseName;
+  const nums = existing.map(l => {
+    if (l === baseName) return 1;
+    const m = l.match(/ - (\d+)$/);
+    return m ? parseInt(m[1]) : 1;
+  });
+  return baseName + ' - ' + (Math.max(...nums) + 1);
+}
+
+// ── PRODUCT SELECTION ─────────────────────────────────────────
+async function selectProduct(tab, productName) {
+  const specs = await getProductSpecs(productName, tab.quarry);
+  const prod = state.products.find(p => p.Product === productName && p.Quarry === tab.quarry);
+  tab.product = productName;
+  tab.productId = prod?.ProductID || null;
+  tab.isCustomProduct = false;
+  tab.customFineSectionMode = '';
+  tab.sieveData = specs.map(s =>
+    createSieveRow(s.SieveLabel, s.SieveType, s.SieveOrder, s.MinPercent ?? null, s.MaxPercent ?? null)
+  );
+  // Add Pan rows — same as the custom-product builder does. Pan is never
+  // part of a product's spec (it has no min/max), so it isn't stored as a
+  // sieve column; it's always implied whenever that section has sieves.
+  if (specs.some(s => s.SieveType === 'Coarse')) {
+    tab.sieveData.push(createSieveRow('Pan', 'Coarse', 10, null, null));
+  }
+  if (specs.some(s => s.SieveType === 'Fine')) {
+    tab.sieveData.push(createSieveRow('Pan', 'Fine', 200, null, null));
+  }
+  tab.initialWeight = null;
+  tab.fineInitialWeight = null;
+  tab.dryWeight = null;
+  tab.washedDryWeight = null;
+  tab.notes = '';
+  tab.tabLabel = assignTabLabel(productName);
+  await saveTab(tab);
+  renderAll();
+}
+
+async function getProductSpecs(productName, quarry) {
+  // No network call — specs are already parsed onto state.products by
+  // loadSharePointData() (via deriveProducts -> buildSpecsFromRow), so this
+  // works offline for every product, not just ones visited before. Kept
+  // async so existing `await getProductSpecs(...)` call sites don't change.
+  const prod = state.products.find(p => p.Product === productName && p.Quarry === quarry);
+  return prod?.specs || [];
+}
+
+// ── LOAD DATA ─────────────────────────────────────────────────
+async function loadSharePointData() {
+  const metaFields = ['Title', 'Quarry', 'ProductID', 'Active', 'FineMode', 'CoarseMoisture', 'FineMoisture', 'DisplayOrder'];
+  const sieveFields = SIEVE_COLUMNS.map(c => c.key);
+  try {
+    if (state.token) {
+      const rows = await spGetAll(CONFIG.LISTS.PRODUCTS,
+        `$select=${metaFields.concat(sieveFields).join(',')}`);
+      if (rows) {
+        state.productRows = rows.map(r => {
+          const row = {
+            Quarry: r.Quarry?.Value || r.Quarry,
+            Product: r.Title,
+            ProductID: r.ProductID || null,
+            Active: r.Active !== false, // treat missing/blank as active
+            FineMode: r.FineMode?.Value || r.FineMode || 'None',
+            CoarseMoisture: !!r.CoarseMoisture,
+            FineMoisture: !!r.FineMoisture,
+            DisplayOrder: r.DisplayOrder,
+          };
+          sieveFields.forEach(key => { row[key] = r[key]; });
+          return row;
+        });
+        await dbPut('cache', { key: 'productRows', data: state.productRows });
+      }
+    } else {
+      const cached = await dbGet('cache', 'productRows');
+      state.productRows = cached?.data || MOCK_PRODUCT_ROWS;
+    }
+  } catch (e) {
+    console.error('Load SP data failed:', e);
+    const cached = await dbGet('cache', 'productRows');
+    state.productRows = cached?.data || MOCK_PRODUCT_ROWS;
+  }
+  // Everything else derives from the one product list.
+  state.quarries = deriveQuarries(state.productRows);
+  state.products = deriveProducts(state.productRows);
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+async function init() {
+  // Prevent Up/Down arrow keys and mouse-wheel scroll from nudging number
+  // inputs — delegated at the document level so it covers every sieve/
+  // weight input across every render without needing to rebind per-row.
+  document.addEventListener('keydown', (e) => {
+    if (e.target.matches?.('input[type="number"]') && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+      e.preventDefault();
+    }
+  });
+  document.addEventListener('wheel', (e) => {
+    if (document.activeElement?.matches?.('input[type="number"]')) {
+      document.activeElement.blur();
+    }
+  }, { passive: true });
+
+  await openDB();
+  // Load queue
+  const qItems = await dbGetAll('queue');
+  state.queue = qItems || [];
+  // Auth
+  const authed = await initAuth();
+  // Load SP data
+  await loadSharePointData();
+  // Load saved tabs
+  const savedTabs = await dbGetAll('tabs');
+  if (savedTabs?.length) {
+    state.tabs = savedTabs.sort((a, b) =>
+      new Date(a.lastModified) - new Date(b.lastModified)
+    );
+    state.activeTabId = state.tabs[0].tabId;
+  } else {
+    await addNewTab();
+  }
+  // Flush queue if online
+  if (state.isOnline && state.queue.length > 0) {
+    const flushed = await flushQueue();
+    if (flushed > 0) toast(`${flushed} queued gradation${flushed > 1 ? 's' : ''} submitted`, 'success');
+  }
+  // Prefs
+  const lastQ = await dbGet('prefs', 'lastQuarry');
+  if (lastQ && state.quarries.includes(lastQ.value)) {
+    const tab = getActiveTab();
+    if (tab && !tab.quarry) tab.quarry = lastQ.value;
+  }
+  renderAll();
+  document.getElementById('loading').classList.add('hidden');
+  updateQueueBadge();
+}
+
+async function addNewTab() {
+  const lastQ = await dbGet('prefs', 'lastQuarry');
+  const quarry = lastQ?.value || state.quarries[0] || '';
+  const lastTech = await dbGet('prefs', 'lastTech');
+  const tab = createTab({
+    quarry,
+    technician: lastTech?.value || state.user?.displayName || '',
+  });
+  state.tabs.push(tab);
+  state.activeTabId = tab.tabId;
+  await saveTab(tab);
+  return tab;
+}
+
+async function switchTab(tabId) {
+  state.activeTabId = tabId;
+  renderAll();
+}
+
+function renderAll() {
+  renderTabs();
+  renderHeader();
+  renderSieveSection();
+}
+
+// ── TOAST ─────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show' + (type ? ' ' + type : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className = '', 2800);
+}
+
+// ── EVENT BINDINGS ────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  // New tab
+  document.getElementById('btn-new-tab').addEventListener('click', async () => {
+    await addNewTab();
+    renderAll();
+  });
+
+  // Queue badge
+  document.getElementById('queue-badge').addEventListener('click', () => {
+    renderQueueScreen();
+    document.getElementById('queue-screen').classList.remove('hidden');
+  });
+
+  // Queue back
+  document.getElementById('btn-queue-back').addEventListener('click', () => {
+    document.getElementById('queue-screen').classList.add('hidden');
+  });
+
+  // Queue submit all
+  document.getElementById('btn-queue-submit-all').addEventListener('click', async () => {
+    if (!state.isOnline) { toast('No connection', 'error'); return; }
+    const n = await flushQueue();
+    renderQueueScreen();
+    if (n > 0) toast(`${n} gradation${n > 1 ? 's' : ''} submitted`, 'success');
+    else toast('Nothing to submit or upload failed', 'warning');
+  });
+
+  // Submit confirm
+  document.getElementById('btn-submit-cancel').addEventListener('click', () => showOverlay(null));
+  document.getElementById('btn-submit-confirm').addEventListener('click', doSubmit);
+
+  // Delete confirm
+  document.getElementById('btn-delete-cancel').addEventListener('click', () => showOverlay(null));
+  document.getElementById('btn-delete-confirm').addEventListener('click', async () => {
+    const tab = getActiveTab();
+    if (!tab) return;
+    showOverlay(null);
+    await deleteTabFromDB(tab.tabId);
+    state.tabs = state.tabs.filter(t => t.tabId !== tab.tabId);
+    if (state.tabs.length === 0) await addNewTab();
+    else state.activeTabId = state.tabs[0].tabId;
+    renderAll();
+  });
+
+  // Change product confirm
+  document.getElementById('btn-change-cancel').addEventListener('click', () => {
+    showOverlay(null);
+    state.pendingProductChange = null;
+    renderHeader(); // Reset dropdown
+  });
+  document.getElementById('btn-change-confirm').addEventListener('click', async () => {
+    showOverlay(null);
+    if (state.pendingProductChange) {
+      const { tab, productName } = state.pendingProductChange;
+      state.pendingProductChange = null;
+      if (productName === '__custom__') {
+        openCustomDialog();
+      } else {
+        await selectProduct(tab, productName);
+      }
+    }
+  });
+
+  // Result OK
+  document.getElementById('btn-result-ok').addEventListener('click', () => showOverlay(null));
+
+  // Custom dialog
+  document.getElementById('btn-custom-cancel').addEventListener('click', () => {
+    showOverlay(null);
+    renderHeader();
+  });
+  document.getElementById('btn-custom-confirm').addEventListener('click', confirmCustomProduct);
+
+  document.querySelectorAll('.section-toggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.section-toggle button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.customSection = btn.dataset.section;
+      const fineRow = document.getElementById('fine-mode-row');
+      fineRow.style.display = (state.customSection === 'Fine' || state.customSection === 'Both') ? 'flex' : 'none';
+      renderCustomPicker();
+    });
+  });
+
+  document.querySelectorAll('.fine-mode-toggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.fine-mode-toggle button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.customFineMode = btn.dataset.mode;
+    });
+  });
+
+  // Header field changes
+  document.getElementById('sel-quarry').addEventListener('change', async (e) => {
+    const tab = getActiveTab();
+    if (!tab) return;
+    tab.quarry = e.target.value;
+    await dbPut('prefs', { key: 'lastQuarry', value: tab.quarry });
+    // Reset product if it doesn't exist at this quarry
+    const exists = state.products.some(p => p.Product === tab.product && p.Quarry === tab.quarry);
+    if (!exists) {
+      tab.product = '';
+      tab.sieveData = [];
+      tab.tabLabel = 'New';
+    }
+    await saveTab(tab);
+    renderHeader();
+    renderSieveSection();
+    renderTabs();
+  });
+
+  document.getElementById('sel-product').addEventListener('change', async (e) => {
+    const tab = getActiveTab();
+    if (!tab) return;
+    const newProduct = e.target.value;
+    const hasData = tab.sieveData.some(r => r.isTouched) ||
+      tab.initialWeight || tab.fineInitialWeight || tab.dryWeight || tab.notes;
+    if (hasData && tab.product && newProduct !== tab.product) {
+      state.pendingProductChange = {
+        tab,
+        productName: newProduct,
+      };
+      showOverlay('overlay-change-product');
+      return;
+    }
+    if (newProduct === '__custom__') {
+      openCustomDialog();
+    } else if (newProduct) {
+      await selectProduct(tab, newProduct);
+    } else {
+      tab.product = '';
+      tab.sieveData = [];
+      tab.tabLabel = 'New';
+      await saveTab(tab);
+      renderAll();
+    }
+  });
+
+  document.getElementById('sel-type').addEventListener('change', async (e) => {
+    const tab = getActiveTab();
+    if (!tab) return;
+    tab.sampleType = e.target.value;
+    await saveTab(tab);
+  });
+
+  document.getElementById('inp-tech').addEventListener('change', async (e) => {
+    const tab = getActiveTab();
+    if (!tab) return;
+    tab.technician = e.target.value;
+    await dbPut('prefs', { key: 'lastTech', value: tab.technician });
+    await saveTab(tab);
+  });
+
+  document.getElementById('inp-date').addEventListener('change', async (e) => {
+    const tab = getActiveTab();
+    if (!tab) return;
+    tab.sampleDate = e.target.value;
+    await saveTab(tab);
+  });
+
+  document.getElementById('inp-time').addEventListener('change', async (e) => {
+    const tab = getActiveTab();
+    if (!tab) return;
+    tab.sampleTime = e.target.value;
+    await saveTab(tab);
+  });
+
+  // Online/offline
+  window.addEventListener('online', async () => {
+    state.isOnline = true;
+    document.getElementById('offline-banner').classList.remove('show');
+    const n = await flushQueue();
+    if (n > 0) toast(`${n} queued gradation${n > 1 ? 's' : ''} submitted`, 'success');
+  });
+  window.addEventListener('offline', () => {
+    state.isOnline = false;
+    document.getElementById('offline-banner').classList.add('show');
+  });
+  if (!navigator.onLine) {
+    document.getElementById('offline-banner').classList.add('show');
+  }
+
+  init();
+});
+
+// ── SERVICE WORKER REGISTRATION ───────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(e => console.warn('SW reg failed:', e));
+  });
+}
+
+function openCustomDialog() {
+  state.customSection = 'Coarse';
+  state.customFineMode = 'Washed';
+  document.querySelectorAll('.section-toggle button').forEach(b => {
+    b.classList.toggle('active', b.dataset.section === 'Coarse');
+  });
+  document.querySelectorAll('.fine-mode-toggle button').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === 'Washed');
+  });
+  document.getElementById('fine-mode-row').style.display = 'none';
+  document.getElementById('custom-name').value = '';
+  renderCustomPicker();
+  showOverlay('overlay-custom');
+}
+</script>
+</body>
+</html>
