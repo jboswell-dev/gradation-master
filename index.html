@@ -1084,10 +1084,13 @@ function getGraphScope() {
 }
 
 async function initAuth() {
-  // DEMO MODE: mock data, no real sign-in
+  // DEMO MODE: skip real sign-in. No mock data anymore (removed once the
+  // real SharePoint connection was confirmed working) — this now just
+  // exercises the UI shell with an empty product list, e.g. for quickly
+  // checking layout/styling changes without a real login each time.
   if (CONFIG.FORCE_DEMO_MODE || CONFIG.CLIENT_ID === 'YOUR_CLIENT_ID') {
     state.user = { displayName: 'Demo User' };
-    state.token = null; // No real token — SP calls will use mock data
+    state.token = null;
     return true;
   }
 
@@ -1235,67 +1238,6 @@ function buildSpecsFromRow(row) {
   });
   return specs;
 }
-
-// ── MOCK DATA (used in demo mode) ────────────────────────────
-// One row per product per quarry — shaped exactly like rows from the
-// consolidated Gradation_Products list. See CONFIG.LISTS.PRODUCTS above
-// for the column reference.
-const MOCK_QUARRIES = ['Quarry A', 'Quarry B'];
-
-const MOCK_PRODUCT_DEFS = [
-  { Product: 'Class 5', ProductID: '1005', FineMode: 'Washed', DisplayOrder: 10,
-    coarse: { '1"':'100', '3/4"':'70-100', '1/2"':'*', '3/8"':'45-90', '#4':'30-80' },
-    fine:   { '#10':'15-65', '#40':'7-35', '#200':'3-12' } },
-  { Product: 'Class 6 Con-Bit', ProductID: '1006', FineMode: 'Washed', DisplayOrder: 20,
-    coarse: { '1 1/2"':'100', '3/4"':'70-100', '3/8"':'45-85', '#4':'35-70' },
-    fine:   { '#10':'15-65', '#40':'7-35', '#200':'3-12' } },
-  { Product: '1 1/2" Clear', ProductID: '1150', FineMode: 'None', DisplayOrder: 30,
-    coarse: { '1 1/2"':'100', '3/4"':'70-100', '3/8"':'45-85', '#4':'35-70' } },
-  // Same ProductID (2075) shared across two different bituminous/concrete
-  // variants — matches how the real ERP codes them.
-  { Product: '3/4" Clear - Bituminous', ProductID: '2075', FineMode: 'None', DisplayOrder: 40,
-    coarse: { '3/4"':'100', '3/8"':'45-85', '#4':'35-70' } },
-  { Product: '3/4" Clear - Concrete', ProductID: '2075', FineMode: 'None', DisplayOrder: 50,
-    coarse: { '3/4"':'100', '3/8"':'45-85', '#4':'35-70' } },
-  { Product: '3/8" Clear', ProductID: '2038', FineMode: 'None', DisplayOrder: 60,
-    coarse: { '3/8"':'100', '#4':'35-70' } },
-  { Product: 'Lime Sand', ProductID: '3010', FineMode: 'Washed', DisplayOrder: 70, FineMoisture: true,
-    fine: { '3/8"':'100','#4':'90-100','#8':'45-65','#10':'40-60','#16':'25-50','#20':'20-40',
-             '#30':'15-35','#40':'12-30','#50':'10-25','#80':'5-15','#100':'3-12','#200':'1-3.5' } },
-  { Product: 'Recycle Class 5', ProductID: '4005', FineMode: 'DryOnly', DisplayOrder: 80,
-    coarse: { '1 1/2"':'100', '3/4"':'70-100', '3/8"':'45-85', '#4':'35-70' } },
-  { Product: 'OGAB', ProductID: '4090', FineMode: 'None', DisplayOrder: 90, CoarseMoisture: true,
-    coarse: { '1 1/2"':'100', '3/4"':'70-100', '3/8"':'45-85', '#4':'35-70' } },
-  { Product: '3/4" Minus', FineMode: 'DryOnly', DisplayOrder: 100, // no ProductID — demonstrates a product with none
-    coarse: { '1 1/2"':'100', '3/4"':'70-100', '3/8"':'45-85', '#4':'35-70' } },
-  // Example of a hidden product — won't show up anywhere in the app.
-  { Product: 'Discontinued Test Mix', ProductID: '9999', FineMode: 'None', DisplayOrder: 110, Active: false,
-    coarse: { '3/4"':'100', '#4':'35-70' } },
-];
-
-function mockSieveCells(def) {
-  const cells = {};
-  Object.entries(def.coarse || {}).forEach(([label, val]) => { cells[sieveKey(label, 'Coarse')] = val; });
-  Object.entries(def.fine || {}).forEach(([label, val]) => { cells[sieveKey(label, 'Fine')] = val; });
-  return cells;
-}
-
-const MOCK_PRODUCT_ROWS = [];
-MOCK_QUARRIES.forEach(quarry => {
-  MOCK_PRODUCT_DEFS.forEach(def => {
-    MOCK_PRODUCT_ROWS.push({
-      Quarry: quarry,
-      Product: def.Product,
-      ProductID: def.ProductID || null,
-      Active: def.Active !== false,
-      FineMode: def.FineMode || 'None',
-      CoarseMoisture: !!def.CoarseMoisture,
-      FineMoisture: !!def.FineMoisture,
-      DisplayOrder: def.DisplayOrder,
-      ...mockSieveCells(def),
-    });
-  });
-});
 
 // ── DERIVE QUARRIES / PRODUCTS FROM THE PRODUCT LIST ───────────
 // Everything downstream (dropdowns, spec lookups) still reads
@@ -1687,7 +1629,7 @@ function renderSieveSection() {
     }
     {
       const lossCheckPct = (fineSectionMode === 'Washed' && tab.dryWeight && totalFine > 0)
-        ? Math.round(((totalFine - (tab.washedDryWeight || 0)) / tab.dryWeight * 100) * 100) / 100
+        ? Math.round(((totalFine - tab.dryWeight) / tab.dryWeight * 100) * 100) / 100
         : null;
       const lossStr = lossCheckPct !== null
         ? ` <span class="total-losscheck" style="font-size:11px;font-weight:500;color:${Math.abs(lossCheckPct) > 0.3 ? 'var(--fail-red)' : 'var(--steel)'}">(${lossCheckPct >= 0 ? '+' : ''}${lossCheckPct}%)</span>`
@@ -2166,13 +2108,15 @@ async function loadSharePointData() {
         await dbPut('cache', { key: 'productRows', data: state.productRows });
       }
     } else {
+      // No token (demo mode toggle) and no cached data yet — empty product
+      // list rather than fake data, so an empty state is unambiguous.
       const cached = await dbGet('cache', 'productRows');
-      state.productRows = cached?.data || MOCK_PRODUCT_ROWS;
+      state.productRows = cached?.data || [];
     }
   } catch (e) {
     console.error('Load SP data failed:', e);
     const cached = await dbGet('cache', 'productRows');
-    state.productRows = cached?.data || MOCK_PRODUCT_ROWS;
+    state.productRows = cached?.data || [];
   }
   // Everything else derives from the one product list.
   state.quarries = deriveQuarries(state.productRows);
