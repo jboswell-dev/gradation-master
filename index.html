@@ -1161,7 +1161,7 @@ async function spGetAll(listId, selectFields = []) {
   // working correctly as that list grows over time.
   await ensureFreshToken();
   if (!state.token) return null; // Demo mode
-  const expand = selectFields.length ? `fields(select=${selectFields.join(',')})` : 'fields';
+  const expand = selectFields.length ? `fields($select=${selectFields.join(',')})` : 'fields';
   let url = `https://graph.microsoft.com/v1.0/sites/${CONFIG.SITE_ID}/lists/${listId}/items?$expand=${expand}&$top=200`;
   let results = [];
   while (url) {
