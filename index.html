@@ -2130,6 +2130,15 @@ async function loadSharePointData() {
 
 // ── INIT ──────────────────────────────────────────────────────
 async function init() {
+  // Asks the browser not to silently evict this site's storage (IndexedDB
+  // queue, service worker cache) under low-disk-space pressure. Not a
+  // guarantee — the browser/OS can still say no — but it's a real signal
+  // that this data matters, worth sending even though it doesn't always help.
+  if (navigator.storage?.persist) {
+    navigator.storage.persist().catch(() => {});
+  }
+
+
   // Prevent Up/Down arrow keys and mouse-wheel scroll from nudging number
   // inputs — delegated at the document level so it covers every sieve/
   // weight input across every render without needing to rebind per-row.
