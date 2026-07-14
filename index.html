@@ -870,6 +870,10 @@ const CONFIG = {
   CLIENT_ID: '05d202ff-22eb-443d-86a9-f7824d7e1e97',
   TENANT_ID: '6e80e38c-9c64-427b-a5c3-9d42a7077b22',
   SITE_URL: 'https://kraemermm.sharepoint.com/sites/Technical_Services',
+  // Composite site ID Microsoft Graph uses to address the site (looked up
+  // once via Graph Explorer — doesn't change unless the site itself is
+  // recreated).
+  SITE_ID: 'kraemermm.sharepoint.com,14b8e4e5-569c-479d-b5eb-4a5ca4125cc0,650056b6-6652-4924-860f-ea63b28952ab',
   LISTS: {
     // One row per product (not per sieve).
     //
@@ -903,6 +907,10 @@ const CONFIG = {
     // To add a product: add one row. To hide one: set Active=No.
     // To delete: delete the row.
     PRODUCTS: 'Gradation_Products',
+    // Graph addresses lists by GUID, not name — looked up once via Graph
+    // Explorer (GET /sites/{SITE_ID}/lists). Only needs updating if the
+    // list is ever deleted and recreated.
+    PRODUCTS_ID: '4d8153bd-ac50-4527-bdde-d3bc6aea4147',
 
     // Submitted test results — one row per gradation test. Required columns:
     //   Title              Text            auto-filled: "Product — Quarry — Date"
@@ -929,7 +937,8 @@ const CONFIG = {
     //
     // Who submitted it and when are already covered by SharePoint's built-in
     // Created / Author columns — no need to duplicate those.
-    MASTER_LOG: 'Gradation_Master_Log'
+    MASTER_LOG: 'Gradation_Master_Log',
+    MASTER_LOG_ID: '7d3467c7-ba98-4f4b-8a55-5846f252809c'
   }
 };
 
@@ -1066,12 +1075,12 @@ function getMsalConfig() {
   };
 }
 
-// This app calls the SharePoint REST API directly (_api/web/lists/...),
-// not Microsoft Graph — so the token audience must be the SharePoint site
-// collection itself. Scope is the site's ROOT ORIGIN + "/.default" (not
-// the full SITE_URL, which includes the /sites/... path).
-function getSharePointScope() {
-  return [`${new URL(CONFIG.SITE_URL).origin}/.default`];
+// This app talks to Microsoft Graph (not the classic SharePoint REST API
+// directly) — delegated Sites.Selected is built around Graph, and doesn't
+// reliably extend to the older classic API. Graph's audience is always
+// graph.microsoft.com regardless of which SharePoint site is involved.
+function getGraphScope() {
+  return ['https://graph.microsoft.com/.default'];
 }
 
 async function initAuth() {
@@ -1104,7 +1113,7 @@ async function initAuth() {
   state.user = { displayName: account.name || account.username, email: account.username };
 
   try {
-    const result = await msalInstance.acquireTokenSilent({ scopes: getSharePointScope(), account });
+    const result = await msalInstance.acquireTokenSilent({ scopes: getGraphScope(), account });
     state.token = result.accessToken;
     return true;
   } catch (e) {
@@ -1124,7 +1133,7 @@ async function ensureFreshToken() {
   const account = msalInstance.getActiveAccount();
   if (!account) return;
   try {
-    const result = await msalInstance.acquireTokenSilent({ scopes: getSharePointScope(), account });
+    const result = await msalInstance.acquireTokenSilent({ scopes: getGraphScope(), account });
     state.token = result.accessToken;
   } catch (e) {
     console.warn('Token refresh failed — request will fail and fall back to the offline queue:', e);
@@ -1132,7 +1141,7 @@ async function ensureFreshToken() {
 }
 
 function signIn() {
-  msalInstance.loginRedirect({ scopes: getSharePointScope() });
+  msalInstance.loginRedirect({ scopes: getGraphScope() });
 }
 
 function signOut() {
@@ -1140,61 +1149,52 @@ function signOut() {
   msalInstance?.logoutRedirect({ account });
 }
 
-// ── SHAREPOINT API ────────────────────────────────────────────
-async function spGet(listName, query = '') {
-  await ensureFreshToken();
-  if (!state.token) return null; // Demo mode
-  const url = `${CONFIG.SITE_URL}/_api/web/lists/getbytitle('${listName}')/items?${query}`;
-  const res = await fetch(url, {
-    headers: {
-      'Authorization': `Bearer ${state.token}`,
-      'Accept': 'application/json;odata=nometadata',
-    }
-  });
-  if (!res.ok) throw new Error(`SP GET failed: ${res.status}`);
-  const data = await res.json();
-  return data.value;
-}
-async function spGetAll(listName, query = '') {
-  // Follows @odata.nextLink so lists over the default page size (100 items)
-  // still come back complete. Products is one row per product (small — a few
-  // dozen rows); Master Log grows one row per submitted test, so this keeps
+// ── SHAREPOINT DATA (via Microsoft Graph) ───────────────────────
+// listId is the list's GUID (see CONFIG.LISTS.*_ID), not its display name —
+// Graph addresses lists by ID. Each returned item has its actual column
+// values nested under `.fields`, not flat on the item itself — callers
+// need to read `item.fields.ColumnName`, not `item.ColumnName`.
+async function spGetAll(listId, selectFields = []) {
+  // Follows @odata.nextLink so lists over the default page size still come
+  // back complete. Products is one row per product (small — a few dozen
+  // rows); Master Log grows one row per submitted test, so this keeps
   // working correctly as that list grows over time.
   await ensureFreshToken();
   if (!state.token) return null; // Demo mode
-  let url = `${CONFIG.SITE_URL}/_api/web/lists/getbytitle('${listName}')/items?${query}${query ? '&' : ''}$top=500`;
+  const expand = selectFields.length ? `fields(select=${selectFields.join(',')})` : 'fields';
+  let url = `https://graph.microsoft.com/v1.0/sites/${CONFIG.SITE_ID}/lists/${listId}/items?$expand=${expand}&$top=200`;
   let results = [];
   while (url) {
     const res = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${state.token}`,
-        'Accept': 'application/json;odata=minimalmetadata',
+        'Accept': 'application/json',
       }
     });
-    if (!res.ok) throw new Error(`SP GET failed: ${res.status}`);
+    if (!res.ok) throw new Error(`Graph GET failed: ${res.status}`);
     const data = await res.json();
     results = results.concat(data.value || []);
-    url = data['odata.nextLink'] || null;
+    url = data['@odata.nextLink'] || null;
   }
   return results;
 }
-async function spPost(listName, body) {
+async function spPost(listId, fields) {
   await ensureFreshToken();
   if (!state.token) {
     // Demo mode — simulate success
-    return { ID: Math.floor(Math.random() * 10000) };
+    return { id: String(Math.floor(Math.random() * 10000)) };
   }
-  const url = `${CONFIG.SITE_URL}/_api/web/lists/getbytitle('${listName}')/items`;
+  const url = `https://graph.microsoft.com/v1.0/sites/${CONFIG.SITE_ID}/lists/${listId}/items`;
   const res = await fetch(url, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${state.token}`,
-      'Accept': 'application/json;odata=nometadata',
-      'Content-Type': 'application/json;odata=nometadata',
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
     },
-    body: JSON.stringify(body)
+    body: JSON.stringify({ fields })
   });
-  if (!res.ok) throw new Error(`SP POST failed: ${res.status}`);
+  if (!res.ok) throw new Error(`Graph POST failed: ${res.status}`);
   return await res.json();
 }
 
@@ -1915,25 +1915,25 @@ function renderQueueScreen() {
 }
 
 function buildDetailText(item) {
-  const fields = [
-    'In8_Coarse','In6_Coarse','In4_Coarse','In3_Coarse','In2_Coarse',
-    'In1pt5_Coarse','In1pt25_Coarse','In1_Coarse','In0pt75_Coarse',
-    'In0pt625_Coarse','In0pt5_Coarse','In0pt375_Coarse',
-    'No4_Coarse','No10_Coarse','No30_Coarse','No40_Coarse',
-    'In0pt375_Fine','No4_Fine','No8_Fine','No10_Fine','No16_Fine',
-    'No20_Fine','No30_Fine','No40_Fine','No50_Fine','No60_Fine',
-    'No80_Fine','No100_Fine','No200_Fine','No325_Fine',
-  ];
   const lines = [];
-  fields.forEach(f => {
-    const key = f + '_PctPassing';
-    if (item[key] !== null && item[key] !== undefined) {
-      lines.push(`${f.replace('_',' ')}: ${item[key]}%`);
-    }
+  if (item.ProductID) lines.push(`Product ID: ${esc(item.ProductID)}`);
+  if (item.SampleType) lines.push(`Sample Type: ${esc(item.SampleType)}`);
+  if (item.CoarseMoisturePct !== null && item.CoarseMoisturePct !== undefined) {
+    lines.push(`Coarse Moisture: ${item.CoarseMoisturePct}%`);
+  }
+  if (item.FineMoisturePct !== null && item.FineMoisturePct !== undefined) {
+    lines.push(`Fine Moisture: ${item.FineMoisturePct}%`);
+  }
+  ['Coarse', 'Fine'].forEach(type => {
+    const rows = SIEVE_COLUMNS
+      .filter(c => c.type === type)
+      .filter(c => item[c.key + '_Pct'] !== null && item[c.key + '_Pct'] !== undefined)
+      .sort((a, b) => b.order - a.order);
+    if (rows.length === 0) return;
+    lines.push(`<strong>${type} Sieves</strong>`);
+    rows.forEach(c => lines.push(`&nbsp;&nbsp;${esc(c.label)}: ${item[c.key + '_Pct']}%`));
   });
-  if (item.CoarseMoisture) lines.push(`Coarse Moisture: ${item.CoarseMoisture}%`);
-  if (item.FineMoisture) lines.push(`Fine Moisture: ${item.FineMoisture}%`);
-  if (item.Notes) lines.push(`Notes: ${item.Notes}`);
+  if (item.Notes) lines.push(`Notes: ${esc(item.Notes)}`);
   return lines.join('<br>') || 'No data';
 }
 
@@ -1946,7 +1946,7 @@ async function doSubmit() {
   let success = false;
   if (state.isOnline) {
     try {
-      await spPost(CONFIG.LISTS.MASTER_LOG, record);
+      await spPost(CONFIG.LISTS.MASTER_LOG_ID, record);
       success = true;
     } catch (e) {
       console.error('Submit failed:', e);
@@ -2007,7 +2007,8 @@ async function flushQueue() {
   let success = 0;
   for (const item of [...state.queue]) {
     try {
-      await spPost(CONFIG.LISTS.MASTER_LOG, item);
+      const { queueId, ...fields } = item; // queueId is local-only bookkeeping, not a real column
+      await spPost(CONFIG.LISTS.MASTER_LOG_ID, fields);
       state.queue = state.queue.filter(q => q.queueId !== item.queueId);
       await dbDelete('queue', item.queueId);
       success++;
@@ -2145,10 +2146,10 @@ async function loadSharePointData() {
   const sieveFields = SIEVE_COLUMNS.map(c => c.key);
   try {
     if (state.token) {
-      const rows = await spGetAll(CONFIG.LISTS.PRODUCTS,
-        `$select=${metaFields.concat(sieveFields).join(',')}`);
-      if (rows) {
-        state.productRows = rows.map(r => {
+      const items = await spGetAll(CONFIG.LISTS.PRODUCTS_ID, metaFields.concat(sieveFields));
+      if (items) {
+        state.productRows = items.map(item => {
+          const r = item.fields || {};
           const row = {
             Quarry: r.Quarry?.Value || r.Quarry,
             Product: r.Title,
