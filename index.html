@@ -1471,7 +1471,8 @@ function calcMoisture(initialWeight, dryWeight) {
 
 // ── SIEVE DATA OPERATIONS ─────────────────────────────────────
 function onCumulativeChange(tab, row, value) {
-  const val = value === '' ? null : parseFloat(value);
+  const parsed = value === '' ? null : parseFloat(value);
+  const val = (parsed === null || isNaN(parsed)) ? null : parsed; // guards against stray non-numeric input now that these are type="text"
   // Sort descending by SieveOrder (top sieve first = highest SieveOrder first)
   const sortedRows = tab.sieveData
     .filter(r => r.sieveType === row.sieveType)
@@ -1495,7 +1496,8 @@ function onCumulativeChange(tab, row, value) {
   }
 }
 function onIndividualChange(tab, row, value) {
-  const val = value === '' ? null : parseFloat(value);
+  const parsed = value === '' ? null : parseFloat(value);
+  const val = (parsed === null || isNaN(parsed)) ? null : parsed; // guards against stray non-numeric input now that these are type="text"
   row.individual = val;
   row.isUserEnteredIndividual = val !== null;
   row.isTouched = val !== null;
@@ -1665,7 +1667,7 @@ function renderSieveSection() {
       html += `<div class="section-label">Coarse Sieves</div>
       <div class="weight-row">
         <span class="weight-label">Initial Weight:</span>
-        <input class="weight-input" id="inp-initial-weight" type="number" inputmode="decimal" autocomplete="off" value="${tab.initialWeight ?? ''}" placeholder="">
+        <input class="weight-input" id="inp-initial-weight" type="text" inputmode="decimal" autocomplete="off" value="${tab.initialWeight ?? ''}" placeholder="">
         ${moisture !== null ? `<span class="weight-computed${moisture < 0 ? ' red':''}">${moisture}% moisture</span>` : ''}
       </div>`;
     } else {
@@ -1691,18 +1693,18 @@ function renderSieveSection() {
       const fineMoisture = calcMoisture(tab.fineInitialWeight, tab.dryWeight);
       html += `<div class="weight-row">
         <span class="weight-label">Initial Weight:</span>
-        <input class="weight-input" id="inp-fine-initial-weight" type="number" inputmode="decimal" autocomplete="off" value="${tab.fineInitialWeight ?? ''}" placeholder="">
+        <input class="weight-input" id="inp-fine-initial-weight" type="text" inputmode="decimal" autocomplete="off" value="${tab.fineInitialWeight ?? ''}" placeholder="">
         ${fineMoisture !== null ? `<span class="weight-computed${fineMoisture < 0 ? ' red':''}">${fineMoisture}% moisture</span>` : ''}
       </div>`;
     }
     html += `<div class="weight-row">
       <span class="weight-label">Dry Weight:</span>
-      <input class="weight-input" id="inp-dry-weight" type="number" inputmode="decimal" autocomplete="off" value="${tab.dryWeight ?? ''}" placeholder="">
+      <input class="weight-input" id="inp-dry-weight" type="text" inputmode="decimal" autocomplete="off" value="${tab.dryWeight ?? ''}" placeholder="">
     </div>`;
     if (fineSectionMode === 'Washed') {
       html += `<div class="weight-row">
         <span class="weight-label">Washed Dry Weight:</span>
-        <input class="weight-input" id="inp-washed-dry" type="number" inputmode="decimal" autocomplete="off" value="${tab.washedDryWeight ?? ''}" placeholder="">
+        <input class="weight-input" id="inp-washed-dry" type="text" inputmode="decimal" autocomplete="off" value="${tab.washedDryWeight ?? ''}" placeholder="">
       </div>`;
     }
     html += renderSieveTable(tab, fineRows, 'Fine', totalFine);
@@ -1791,11 +1793,11 @@ function renderSieveTable(tab, rows, type, totalWeight) {
       <span class="sieve-name" style="grid-row:${gridRow};grid-column:1">${row.sieveLabel}</span>
       <span class="pct-passing${inSpec ? ' in-spec' : outSpec ? ' out-spec' : ''}" style="grid-row:${gridRow};grid-column:4" data-label="${esc(row.sieveLabel)}" data-type="${type}">${isPan || pct === null ? '' : pct + '%'}</span>
       <span class="spec-range" style="grid-row:${gridRow};grid-column:5">${isPan ? '' : specLabel}</span>`;
-    cumInputs += `<input class="sieve-input" type="number" inputmode="decimal" autocomplete="off"
+    cumInputs += `<input class="sieve-input" type="text" inputmode="decimal" autocomplete="off"
         style="grid-row:${gridRow};grid-column:2"
         data-label="${esc(row.sieveLabel)}" data-type="${type}" data-field="cumulative"
         value="${cumVal}" ${locked ? 'disabled' : ''}>`;
-    indInputs += `<input class="${indClass}" type="number" inputmode="decimal" autocomplete="off"
+    indInputs += `<input class="${indClass}" type="text" inputmode="decimal" autocomplete="off"
         style="grid-row:${gridRow};grid-column:3"
         data-label="${esc(row.sieveLabel)}" data-type="${type}" data-field="individual"
         value="${indVal}">`;
@@ -1875,11 +1877,14 @@ function bindSieveEvents(tab) {
   });
 
   // Weight inputs
+  // Guards against stray non-numeric input now that these are type="text"
+  // rather than type="number" (browser no longer blocks it at input time).
+  const numOrNull = (v) => { const n = parseFloat(v); return v && !isNaN(n) ? n : null; };
   const weightInputs = {
-    'inp-initial-weight': (v) => { tab.initialWeight = v ? parseFloat(v) : null; },
-    'inp-fine-initial-weight': (v) => { tab.fineInitialWeight = v ? parseFloat(v) : null; },
-    'inp-dry-weight': (v) => { tab.dryWeight = v ? parseFloat(v) : null; },
-    'inp-washed-dry': (v) => { tab.washedDryWeight = v ? parseFloat(v) : null; },
+    'inp-initial-weight': (v) => { tab.initialWeight = numOrNull(v); },
+    'inp-fine-initial-weight': (v) => { tab.fineInitialWeight = numOrNull(v); },
+    'inp-dry-weight': (v) => { tab.dryWeight = numOrNull(v); },
+    'inp-washed-dry': (v) => { tab.washedDryWeight = numOrNull(v); },
   };
   Object.entries(weightInputs).forEach(([id, setter]) => {
     const el = document.getElementById(id);
@@ -2265,13 +2270,16 @@ async function init() {
   // Prevent Up/Down arrow keys and mouse-wheel scroll from nudging number
   // inputs — delegated at the document level so it covers every sieve/
   // weight input across every render without needing to rebind per-row.
+  // Selector matches inputmode="decimal" rather than type="number" — all
+  // numeric fields switched to type="text" to dodge Safari's type="number"
+  // payment-autofill heuristic, which ignored autocomplete="off".
   document.addEventListener('keydown', (e) => {
-    if (e.target.matches?.('input[type="number"]') && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+    if (e.target.matches?.('input[inputmode="decimal"]') && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
       e.preventDefault();
     }
   });
   document.addEventListener('wheel', (e) => {
-    if (document.activeElement?.matches?.('input[type="number"]')) {
+    if (document.activeElement?.matches?.('input[inputmode="decimal"]')) {
       document.activeElement.blur();
     }
   }, { passive: true });
