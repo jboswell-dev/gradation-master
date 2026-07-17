@@ -258,10 +258,22 @@ select.header-input { cursor: pointer; }
 .sieve-input.auto-calc { background: #F0EFED; color: var(--text-sub); }
 .sieve-input.negative { color: var(--fail-red); }
 .sieve-input:disabled { background: #EBEBEA; color: var(--steel-lt); cursor: not-allowed; }
-/* Hide number input spinners */
-input[type=number]::-webkit-inner-spin-button,
-input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-input[type=number] { -moz-appearance: textfield; }
+/* Hide Safari/WebKit's autofill decoration icons (contact/credentials/
+   credit-card buttons that can appear inside a focused field) on every
+   numeric input — belt-and-suspenders alongside autocomplete="off" etc.,
+   since none of those alone reliably stops Safari's autofill heuristics. */
+.sieve-input::-webkit-contacts-auto-fill-button,
+.sieve-input::-webkit-credentials-auto-fill-button,
+.sieve-input::-webkit-caps-lock-indicator,
+.weight-input::-webkit-contacts-auto-fill-button,
+.weight-input::-webkit-credentials-auto-fill-button,
+.weight-input::-webkit-caps-lock-indicator {
+  visibility: hidden;
+  display: none !important;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+}
 
 .pct-passing {
   font-family: var(--font-data);
@@ -1667,7 +1679,7 @@ function renderSieveSection() {
       html += `<div class="section-label">Coarse Sieves</div>
       <div class="weight-row">
         <span class="weight-label">Initial Weight:</span>
-        <input class="weight-input" id="inp-initial-weight" type="text" inputmode="decimal" autocomplete="off" value="${tab.initialWeight ?? ''}" placeholder="">
+        <input class="weight-input" id="inp-initial-weight" name="weight_coarse_initial" type="text" inputmode="decimal" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.initialWeight ?? ''}" placeholder="">
         ${moisture !== null ? `<span class="weight-computed${moisture < 0 ? ' red':''}">${moisture}% moisture</span>` : ''}
       </div>`;
     } else {
@@ -1693,18 +1705,18 @@ function renderSieveSection() {
       const fineMoisture = calcMoisture(tab.fineInitialWeight, tab.dryWeight);
       html += `<div class="weight-row">
         <span class="weight-label">Initial Weight:</span>
-        <input class="weight-input" id="inp-fine-initial-weight" type="text" inputmode="decimal" autocomplete="off" value="${tab.fineInitialWeight ?? ''}" placeholder="">
+        <input class="weight-input" id="inp-fine-initial-weight" name="weight_fine_initial" type="text" inputmode="decimal" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.fineInitialWeight ?? ''}" placeholder="">
         ${fineMoisture !== null ? `<span class="weight-computed${fineMoisture < 0 ? ' red':''}">${fineMoisture}% moisture</span>` : ''}
       </div>`;
     }
     html += `<div class="weight-row">
       <span class="weight-label">Dry Weight:</span>
-      <input class="weight-input" id="inp-dry-weight" type="text" inputmode="decimal" autocomplete="off" value="${tab.dryWeight ?? ''}" placeholder="">
+      <input class="weight-input" id="inp-dry-weight" name="weight_dry" type="text" inputmode="decimal" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.dryWeight ?? ''}" placeholder="">
     </div>`;
     if (fineSectionMode === 'Washed') {
       html += `<div class="weight-row">
         <span class="weight-label">Washed Dry Weight:</span>
-        <input class="weight-input" id="inp-washed-dry" type="text" inputmode="decimal" autocomplete="off" value="${tab.washedDryWeight ?? ''}" placeholder="">
+        <input class="weight-input" id="inp-washed-dry" name="weight_washed_dry" type="text" inputmode="decimal" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.washedDryWeight ?? ''}" placeholder="">
       </div>`;
     }
     html += renderSieveTable(tab, fineRows, 'Fine', totalFine);
@@ -1794,11 +1806,13 @@ function renderSieveTable(tab, rows, type, totalWeight) {
       <span class="pct-passing${inSpec ? ' in-spec' : outSpec ? ' out-spec' : ''}" style="grid-row:${gridRow};grid-column:4" data-label="${esc(row.sieveLabel)}" data-type="${type}">${isPan || pct === null ? '' : pct + '%'}</span>
       <span class="spec-range" style="grid-row:${gridRow};grid-column:5">${isPan ? '' : specLabel}</span>`;
     cumInputs += `<input class="sieve-input" type="text" inputmode="decimal" autocomplete="off"
-        style="grid-row:${gridRow};grid-column:2"
+        autocorrect="off" autocapitalize="off" spellcheck="false"
+        name="qty_${type.toLowerCase()}_${i}" style="grid-row:${gridRow};grid-column:2"
         data-label="${esc(row.sieveLabel)}" data-type="${type}" data-field="cumulative"
         value="${cumVal}" ${locked ? 'disabled' : ''}>`;
     indInputs += `<input class="${indClass}" type="text" inputmode="decimal" autocomplete="off"
-        style="grid-row:${gridRow};grid-column:3"
+        autocorrect="off" autocapitalize="off" spellcheck="false"
+        name="qty2_${type.toLowerCase()}_${i}" style="grid-row:${gridRow};grid-column:3"
         data-label="${esc(row.sieveLabel)}" data-type="${type}" data-field="individual"
         value="${indVal}">`;
   });
