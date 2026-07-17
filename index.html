@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -48,7 +48,13 @@ input, select, button, textarea { font-family: inherit; font-size: inherit; bord
 button { cursor: pointer; }
 
 /* ── LAYOUT ─────────────────────────────────────────────────── */
-#app { display: flex; flex-direction: column; height: 100%; }
+/* flex:1 (not height:100%) so #app shares space with #offline-banner when
+   it's showing, instead of claiming the full viewport height regardless
+   and pushing its own bottom content (the submit/delete bar) off-screen.
+   min-height:0 is needed alongside flex:1 — flex items default to
+   min-height:auto, which can stop them from shrinking to fit and defeats
+   the inner #sieve-section's own overflow-y:auto scrolling. */
+#app { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 
 /* ── HEADER ─────────────────────────────────────────────────── */
 #header {
@@ -114,6 +120,7 @@ select.header-input { cursor: pointer; }
   padding: 3px 8px;
   border-radius: 20px;
   background: rgba(255,255,255,.2);
+  color: var(--white);
   cursor: pointer;
   border: 1px solid rgba(255,255,255,.3);
   transition: background .15s;
@@ -194,15 +201,13 @@ select.header-input { cursor: pointer; }
 /* ── SIEVE TABLE ────────────────────────────────────────────── */
 .sieve-table {
   width: 100%;
-  padding: 0 14px;
+  padding: 0 14px 4px;
   margin-bottom: 4px;
-}
-.sieve-header-row {
   display: grid;
   grid-template-columns: 52px 1fr 1fr 70px 70px;
-  gap: 4px;
-  padding: 3px 8px;
-  margin-bottom: 2px;
+  column-gap: 4px;
+  row-gap: 6px;
+  align-items: center;
 }
 .sieve-col-label {
   font-size: 10px;
@@ -211,26 +216,23 @@ select.header-input { cursor: pointer; }
   letter-spacing: .4px;
   color: var(--steel-lt);
   text-align: right;
+  padding: 3px 2px;
 }
 .sieve-col-label:first-child { text-align: center; }
 .sieve-col-label:nth-child(4), .sieve-col-label:nth-child(5) { text-align: center; }
 
-.sieve-row {
-  display: grid;
-  grid-template-columns: 52px 1fr 1fr 70px 70px;
-  gap: 4px;
-  align-items: center;
-  padding: 3px 8px;
+.sieve-row-bg {
+  grid-column: 1 / -1;
+  align-self: stretch;
   border-radius: var(--radius);
   border-left: 3px solid transparent;
-  margin-bottom: 2px;
   transition: border-color .15s;
   background: var(--white);
   box-shadow: var(--shadow);
 }
-.sieve-row.in-spec { border-left-color: var(--pass-green); }
-.sieve-row.out-spec { border-left-color: var(--fail-red); }
-.sieve-row.pan-row { background: var(--stone); box-shadow: none; border-left-color: transparent !important; }
+.sieve-row-bg.in-spec { border-left-color: var(--pass-green); }
+.sieve-row-bg.out-spec { border-left-color: var(--fail-red); }
+.sieve-row-bg.pan-row { background: var(--stone); box-shadow: none; border-left-color: transparent !important; }
 
 .sieve-name {
   font-family: var(--font-data);
@@ -280,7 +282,7 @@ input[type=number] { -moz-appearance: textfield; }
 
 /* ── NOTES & ACTIONS ────────────────────────────────────────── */
 #notes-section {
-  padding: 8px 14px;
+  padding: 8px 14px calc(8px + env(safe-area-inset-bottom));
   margin-top: auto;
 }
 #notes-input {
@@ -549,6 +551,21 @@ input[type=number] { -moz-appearance: textfield; }
   color: var(--white);
 }
 #queue-list { flex: 1; overflow-y: auto; padding: 12px; }
+#queue-footer {
+  flex-shrink: 0;
+  padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+}
+#btn-sign-out {
+  width: 100%;
+  padding: 10px;
+  border-radius: var(--radius);
+  background: var(--white);
+  border: 1px solid var(--border);
+  color: var(--fail-red);
+  font-size: 14px;
+  font-weight: 600;
+}
 .queue-item {
   background: var(--white);
   border-radius: var(--radius);
@@ -684,10 +701,10 @@ input[type=number] { -moz-appearance: textfield; }
   #quarry-row { grid-column: 1 / 2; }
   #product-row { grid-column: 2 / 3; }
   #type-row { grid-column: 3 / 4; }
-  .sieve-header-row, .sieve-row { grid-template-columns: 60px 1fr 1fr 80px 90px; }
+  .sieve-table { grid-template-columns: 60px 1fr 1fr 80px 90px; }
 }
 @media (max-width: 380px) {
-  .sieve-header-row, .sieve-row { grid-template-columns: 44px 1fr 1fr 60px 60px; }
+  .sieve-table { grid-template-columns: 44px 1fr 1fr 60px 60px; }
   .sieve-col-label, .spec-range, .pct-passing { font-size: 10px; }
 }
 </style>
@@ -782,6 +799,18 @@ input[type=number] { -moz-appearance: textfield; }
   </div>
 </div>
 
+<!-- Missing Fields Warning -->
+<div class="overlay hidden" id="overlay-missing-fields">
+  <div class="dialog">
+    <h2>Missing Data</h2>
+    <p id="missing-fields-text"></p>
+    <div class="dialog-buttons">
+      <button class="btn-secondary" id="btn-missing-cancel">Go Back</button>
+      <button class="btn-primary" id="btn-missing-continue">Continue Anyway</button>
+    </div>
+  </div>
+</div>
+
 <!-- Confirm Delete -->
 <div class="overlay hidden" id="overlay-delete">
   <div class="dialog">
@@ -790,6 +819,30 @@ input[type=number] { -moz-appearance: textfield; }
     <div class="dialog-buttons">
       <button class="btn-secondary" id="btn-delete-cancel">Cancel</button>
       <button class="btn-danger" id="btn-delete-confirm">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Sign Out -->
+<div class="overlay hidden" id="overlay-sign-out">
+  <div class="dialog">
+    <h2>Sign out?</h2>
+    <p>You'll need to sign back in to load products or submit gradations. Any open tabs and queued gradations stay saved on this device and will still be here when you sign back in.</p>
+    <div class="dialog-buttons">
+      <button class="btn-secondary" id="btn-sign-out-cancel">Cancel</button>
+      <button class="btn-danger" id="btn-sign-out-confirm">Sign Out</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Delete Queued Gradation -->
+<div class="overlay hidden" id="overlay-queue-delete">
+  <div class="dialog">
+    <h2>Delete this queued gradation?</h2>
+    <p>This cannot be undone. This gradation has not been submitted yet — deleting it now means it will not sync.</p>
+    <div class="dialog-buttons">
+      <button class="btn-secondary" id="btn-queue-delete-cancel">Cancel</button>
+      <button class="btn-danger" id="btn-queue-delete-confirm">Delete</button>
     </div>
   </div>
 </div>
@@ -851,6 +904,9 @@ input[type=number] { -moz-appearance: textfield; }
       <p style="font-size:32px">📭</p>
       <p>No queued gradations</p>
     </div>
+  </div>
+  <div id="queue-footer">
+    <button id="btn-sign-out">Sign Out</button>
   </div>
 </div>
 
@@ -1343,6 +1399,31 @@ function hasCoarseSieves(tab) {
 function hasFineSieves(tab) {
   return tab.sieveData.some(r => r.sieveType === 'Fine');
 }
+// Returns a human-readable list of fields that are relevant to this tab but
+// still empty — used to warn before submission. Doesn't block submission,
+// just flags it, since a tech may have a legitimate reason to skip one.
+function getMissingFields(tab) {
+  const missing = [];
+  if (!tab.technician || !tab.technician.trim()) missing.push('Technician');
+
+  const prod = state.products.find(p => p.Product === tab.product);
+  const showCoarseInitial = tab.isCustomProduct || prod?.UsesCoarseInitialWeight;
+  const showFineInitial = tab.isCustomProduct || prod?.UsesFineInitialWeight;
+  const fineMode = getFineSectionMode(tab);
+
+  if (hasCoarseSieves(tab) && showCoarseInitial && tab.initialWeight === null) {
+    missing.push('Coarse Initial Weight');
+  }
+  if (hasFineSieves(tab) && fineMode !== 'None') {
+    if (showFineInitial && tab.fineInitialWeight === null) missing.push('Fine Initial Weight');
+    if (tab.dryWeight === null) missing.push('Dry Weight');
+    if (fineMode === 'Washed' && tab.washedDryWeight === null) missing.push('Washed Dry Weight');
+  }
+  tab.sieveData.forEach(row => {
+    if (row.individual === null) missing.push(`${row.sieveType} ${row.sieveLabel}`);
+  });
+  return missing;
+}
 function allSievesTouched(tab, type) {
   // % passing only shows once every sieve AND Pan for this section have data.
   const rows = tab.sieveData.filter(r => r.sieveType === type);
@@ -1584,7 +1665,7 @@ function renderSieveSection() {
       html += `<div class="section-label">Coarse Sieves</div>
       <div class="weight-row">
         <span class="weight-label">Initial Weight:</span>
-        <input class="weight-input" id="inp-initial-weight" type="number" inputmode="decimal" value="${tab.initialWeight ?? ''}" placeholder="">
+        <input class="weight-input" id="inp-initial-weight" type="number" inputmode="decimal" autocomplete="off" value="${tab.initialWeight ?? ''}" placeholder="">
         ${moisture !== null ? `<span class="weight-computed${moisture < 0 ? ' red':''}">${moisture}% moisture</span>` : ''}
       </div>`;
     } else {
@@ -1610,18 +1691,18 @@ function renderSieveSection() {
       const fineMoisture = calcMoisture(tab.fineInitialWeight, tab.dryWeight);
       html += `<div class="weight-row">
         <span class="weight-label">Initial Weight:</span>
-        <input class="weight-input" id="inp-fine-initial-weight" type="number" inputmode="decimal" value="${tab.fineInitialWeight ?? ''}" placeholder="">
+        <input class="weight-input" id="inp-fine-initial-weight" type="number" inputmode="decimal" autocomplete="off" value="${tab.fineInitialWeight ?? ''}" placeholder="">
         ${fineMoisture !== null ? `<span class="weight-computed${fineMoisture < 0 ? ' red':''}">${fineMoisture}% moisture</span>` : ''}
       </div>`;
     }
     html += `<div class="weight-row">
       <span class="weight-label">Dry Weight:</span>
-      <input class="weight-input" id="inp-dry-weight" type="number" inputmode="decimal" value="${tab.dryWeight ?? ''}" placeholder="">
+      <input class="weight-input" id="inp-dry-weight" type="number" inputmode="decimal" autocomplete="off" value="${tab.dryWeight ?? ''}" placeholder="">
     </div>`;
     if (fineSectionMode === 'Washed') {
       html += `<div class="weight-row">
         <span class="weight-label">Washed Dry Weight:</span>
-        <input class="weight-input" id="inp-washed-dry" type="number" inputmode="decimal" value="${tab.washedDryWeight ?? ''}" placeholder="">
+        <input class="weight-input" id="inp-washed-dry" type="number" inputmode="decimal" autocomplete="off" value="${tab.washedDryWeight ?? ''}" placeholder="">
       </div>`;
     }
     html += renderSieveTable(tab, fineRows, 'Fine', totalFine);
@@ -1656,7 +1737,15 @@ function renderSieveSection() {
     ${hasData ? `<textarea id="notes-input" placeholder="Notes">${esc(tab.notes)}</textarea>` : ''}
     <div id="action-row">
       ${hasData ? `<button id="btn-submit">Submit</button>` : '<span style="flex:1"></span>'}
-      <button id="btn-delete" title="Delete tab">🗑</button>
+      <button id="btn-delete" title="Delete tab">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 6h18"/>
+          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+          <path d="M10 11v6"/>
+          <path d="M14 11v6"/>
+        </svg>
+      </button>
     </div>
   </div>`;
 
@@ -1669,15 +1758,21 @@ function renderSieveSection() {
 }
 
 function renderSieveTable(tab, rows, type, totalWeight) {
-  let html = `<div class="sieve-table">
-    <div class="sieve-header-row">
-      <span class="sieve-col-label">Sieve</span>
-      <span class="sieve-col-label">Cumulative</span>
-      <span class="sieve-col-label">Individual</span>
-      <span class="sieve-col-label">% Pass</span>
-      <span class="sieve-col-label">Spec</span>
-    </div>`;
-  rows.forEach(row => {
+  // DOM order here is NOT the same as visual order — every input is placed
+  // into its visual cell via explicit grid-row/grid-column, which lets us
+  // put every field of the SAME kind adjacent in the DOM (all Cumulative
+  // inputs, then all Individual inputs) regardless of which row they
+  // belong to. That's what makes the iPhone keyboard's native
+  // previous/next-field arrows step down the Cumulative column first
+  // (matching what Enter already does), then into Individual — instead of
+  // hopping sideways from Cumulative to Individual on the same row.
+  let bg = '';       // row background cards — non-focusable, order doesn't matter
+  let labels = '';   // sieve name / % pass / spec — non-focusable
+  let cumInputs = ''; // ALL cumulative inputs, in row order
+  let indInputs = ''; // ALL individual inputs, in row order
+
+  rows.forEach((row, i) => {
+    const gridRow = i + 2; // row 1 is the header
     const isPan = row.sieveLabel === 'Pan';
     const pct = isPan ? null : calcPctPassing(tab, row);
     const locked = isCumulativeLocked(tab, row);
@@ -1685,25 +1780,38 @@ function renderSieveTable(tab, rows, type, totalWeight) {
       && pct >= row.minPercent && pct <= row.maxPercent;
     const outSpec = pct !== null && row.minPercent !== null && row.maxPercent !== null
       && (pct < row.minPercent || pct > row.maxPercent);
-    const rowClass = isPan ? 'sieve-row pan-row' : `sieve-row${inSpec ? ' in-spec' : outSpec ? ' out-spec' : ''}`;
+    const rowClass = isPan ? 'sieve-row-bg pan-row' : `sieve-row-bg${inSpec ? ' in-spec' : outSpec ? ' out-spec' : ''}`;
     const specLabel = formatSpec(row.minPercent, row.maxPercent);
     const cumVal = row.cumulative !== null ? row.cumulative : '';
     const indVal = row.individual !== null ? row.individual : '';
     const indClass = `sieve-input${row.isUserEnteredIndividual ? '' : (row.isTouched ? ' auto-calc' : '')}${(row.individual !== null && row.individual < 0) ? ' negative' : ''}`;
-    html += `<div class="${rowClass}">
-      <span class="sieve-name">${row.sieveLabel}</span>
-      <input class="sieve-input" type="number" inputmode="decimal"
+
+    bg += `<div class="${rowClass}" style="grid-row:${gridRow}"></div>`;
+    labels += `
+      <span class="sieve-name" style="grid-row:${gridRow};grid-column:1">${row.sieveLabel}</span>
+      <span class="pct-passing${inSpec ? ' in-spec' : outSpec ? ' out-spec' : ''}" style="grid-row:${gridRow};grid-column:4" data-label="${esc(row.sieveLabel)}" data-type="${type}">${isPan || pct === null ? '' : pct + '%'}</span>
+      <span class="spec-range" style="grid-row:${gridRow};grid-column:5">${isPan ? '' : specLabel}</span>`;
+    cumInputs += `<input class="sieve-input" type="number" inputmode="decimal" autocomplete="off"
+        style="grid-row:${gridRow};grid-column:2"
         data-label="${esc(row.sieveLabel)}" data-type="${type}" data-field="cumulative"
-        value="${cumVal}" ${locked ? 'disabled' : ''}>
-      <input class="${indClass}" type="number" inputmode="decimal"
+        value="${cumVal}" ${locked ? 'disabled' : ''}>`;
+    indInputs += `<input class="${indClass}" type="number" inputmode="decimal" autocomplete="off"
+        style="grid-row:${gridRow};grid-column:3"
         data-label="${esc(row.sieveLabel)}" data-type="${type}" data-field="individual"
-        value="${indVal}">
-      <span class="pct-passing${inSpec ? ' in-spec' : outSpec ? ' out-spec' : ''}" data-label="${esc(row.sieveLabel)}" data-type="${type}">${isPan || pct === null ? '' : pct + '%'}</span>
-      <span class="spec-range">${isPan ? '' : specLabel}</span>
-    </div>`;
+        value="${indVal}">`;
   });
-  html += '</div>';
-  return html;
+
+  return `<div class="sieve-table">
+    <span class="sieve-col-label" style="grid-row:1;grid-column:1">Sieve</span>
+    <span class="sieve-col-label" style="grid-row:1;grid-column:2">Cumulative</span>
+    <span class="sieve-col-label" style="grid-row:1;grid-column:3">Individual</span>
+    <span class="sieve-col-label" style="grid-row:1;grid-column:4">% Pass</span>
+    <span class="sieve-col-label" style="grid-row:1;grid-column:5">Spec</span>
+    ${bg}
+    ${labels}
+    ${cumInputs}
+    ${indInputs}
+  </div>`;
 }
 
 function formatSpec(min, max) {
@@ -1803,7 +1911,20 @@ function bindSieveEvents(tab) {
 
   // Submit
   const submitBtn = document.getElementById('btn-submit');
-  if (submitBtn) submitBtn.addEventListener('click', () => showOverlay('overlay-submit'));
+  if (submitBtn) submitBtn.addEventListener('click', () => {
+    const tab = getActiveTab();
+    const missing = tab ? getMissingFields(tab) : [];
+    if (missing.length > 0) {
+      const text = missing.length <= 8
+        ? `The following are empty: ${missing.join(', ')}.`
+        : `${missing.length} fields are empty.`;
+      document.getElementById('missing-fields-text').textContent =
+        `${text} You can continue anyway or go back and fill them in.`;
+      showOverlay('overlay-missing-fields');
+    } else {
+      showOverlay('overlay-submit');
+    }
+  });
 }
 
 // ── QUEUE ─────────────────────────────────────────────────────
@@ -1850,12 +1971,9 @@ function renderQueueScreen() {
       detail.classList.toggle('open');
       btn.textContent = detail.classList.contains('open') ? '▲ Hide' : '▼ Details';
     });
-    div.querySelector('.btn-queue-delete').addEventListener('click', async (e) => {
-      const id = e.target.dataset.id;
-      state.queue = state.queue.filter(q => q.queueId !== id);
-      await dbDelete('queue', id);
-      renderQueueScreen();
-      updateQueueBadge();
+    div.querySelector('.btn-queue-delete').addEventListener('click', (e) => {
+      state.pendingQueueDeleteId = e.target.dataset.id;
+      showOverlay('overlay-queue-delete');
     });
     list.appendChild(div);
   });
@@ -2022,11 +2140,16 @@ function confirmCustomProduct() {
   checked.forEach(cb => {
     tab.sieveData.push(createSieveRow(cb.dataset.label, cb.dataset.type, parseInt(cb.dataset.order), null, null));
   });
-  // Add Pan rows
-  if (state.customSection === 'Coarse' || state.customSection === 'Both') {
+  // Add Pan rows — only for a section that actually has a checked sieve in
+  // it. Basing this on the Coarse/Fine/Both toggle alone (instead of what's
+  // really checked) could add a Pan-only "empty" section, e.g. toggle set
+  // to Both but only Fine sieves actually checked.
+  const hasCheckedCoarse = Array.from(checked).some(cb => cb.dataset.type === 'Coarse');
+  const hasCheckedFine = Array.from(checked).some(cb => cb.dataset.type === 'Fine');
+  if (hasCheckedCoarse) {
     tab.sieveData.push(createSieveRow('Pan', 'Coarse', 10, null, null));
   }
-  if (state.customSection === 'Fine' || state.customSection === 'Both') {
+  if (hasCheckedFine) {
     tab.sieveData.push(createSieveRow('Pan', 'Fine', 200, null, null));
   }
   showOverlay(null);
@@ -2252,6 +2375,33 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('queue-screen').classList.add('hidden');
   });
 
+  // Sign out
+  document.getElementById('btn-sign-out').addEventListener('click', () => {
+    showOverlay('overlay-sign-out');
+  });
+  document.getElementById('btn-sign-out-cancel').addEventListener('click', () => showOverlay(null));
+  document.getElementById('btn-sign-out-confirm').addEventListener('click', () => {
+    showOverlay(null);
+    signOut();
+  });
+
+  // Queue item delete confirm
+  document.getElementById('btn-queue-delete-cancel').addEventListener('click', () => {
+    state.pendingQueueDeleteId = null;
+    showOverlay(null);
+  });
+  document.getElementById('btn-queue-delete-confirm').addEventListener('click', async () => {
+    const id = state.pendingQueueDeleteId;
+    if (id) {
+      state.queue = state.queue.filter(q => q.queueId !== id);
+      await dbDelete('queue', id);
+      renderQueueScreen();
+      updateQueueBadge();
+    }
+    state.pendingQueueDeleteId = null;
+    showOverlay(null);
+  });
+
   // Queue submit all
   document.getElementById('btn-queue-submit-all').addEventListener('click', async () => {
     if (!state.isOnline) { toast('No connection', 'error'); return; }
@@ -2264,6 +2414,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Submit confirm
   document.getElementById('btn-submit-cancel').addEventListener('click', () => showOverlay(null));
   document.getElementById('btn-submit-confirm').addEventListener('click', doSubmit);
+
+  // Missing fields warning — "Continue Anyway" proceeds to the normal
+  // submit confirmation rather than submitting immediately, so there's
+  // still exactly one explicit "yes, submit" action either way.
+  document.getElementById('btn-missing-cancel').addEventListener('click', () => showOverlay(null));
+  document.getElementById('btn-missing-continue').addEventListener('click', () => showOverlay('overlay-submit'));
 
   // Delete confirm
   document.getElementById('btn-delete-cancel').addEventListener('click', () => showOverlay(null));

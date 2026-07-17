@@ -1,7 +1,7 @@
 // ── SERVICE WORKER — Gradation Master 5000 ──────────────────────
 // Bump this on every deploy that changes cached content. Old-versioned
 // caches get cleaned up automatically on activate.
-const CACHE_VERSION = 'gradation-master-v1';
+const CACHE_VERSION = 'gradation-master-v2';
 
 // The app shell — this is a single-file app (all CSS/JS inline in
 // index.html), so there's very little to precache. These are fetched and
