@@ -43,9 +43,19 @@
 
 /* ── RESET ──────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; overflow: hidden; background: var(--stone); overscroll-behavior: none; }
-@supports (height: 100dvh) {
-  html, body { height: 100dvh; }
+html { height: 100%; }
+/* position:fixed on body is the reliable iOS scroll-lock — the page itself
+   can never rubber-band because it is not scrollable at all. Height comes
+   from --vhpx (set from visualViewport by JS, updated on rotate/resize)
+   so there is never a stale-100vh white bar at the bottom. */
+body {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: var(--vhpx, 100%);
+  overflow: hidden;
+  background: var(--stone);
+  overscroll-behavior: none;
 }
 body { font-family: var(--font-ui); font-size: 15px; color: var(--text); display: flex; flex-direction: column; }
 input, select, button, textarea { font-family: inherit; font-size: inherit; border: none; outline: none; background: none; }
@@ -108,11 +118,13 @@ button { cursor: pointer; }
   background: transparent;
 }
 .header-input::placeholder { color: rgba(255,255,255,.5); }
+/* date/time: iOS centers the value inside the input's own width; making the
+   input shrink-to-fit (instead of flex:1 stretch) pins it to the left. */
+#inp-date, #inp-time { flex: 0 1 auto; width: auto; min-width: 0; text-align: left; -webkit-appearance: none; appearance: none; }
 .header-input option { color: var(--text); background: var(--white); }
 select.header-input { cursor: pointer; }
-/* quarry-row uses default grid placement — same half-width as product-row */
-#product-row { grid-column: 1 / 2; }
-#type-row { grid-column: 2 / 3; }
+/* Narrow screens: natural 2-col flow → quarry+product / type+tech / date+time.
+   Desktop 3-col placements live in the ≥768px media query. */
 
 /* ── QUEUE BADGE ────────────────────────────────────────────── */
 #queue-badge {
@@ -716,6 +728,38 @@ input[type=number] { -moz-appearance: textfield; }
 }
 #offline-banner.show { display: block; }
 
+/* ── ON-SCREEN NUMPAD ───────────────────────────────────────── */
+:root { --numpad-h: 236px; }
+#numpad {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 60;
+  display: none;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+  background: #22252B;
+  box-shadow: 0 -2px 12px rgba(0,0,0,.35);
+}
+body.numpad-open #numpad { display: grid; }
+/* Make room so the focused row can scroll above the pad */
+body.numpad-open #sieve-section { padding-bottom: var(--numpad-h); }
+#numpad button {
+  height: 50px;
+  border-radius: 8px;
+  background: #3A3E46;
+  color: var(--white);
+  font-size: 20px;
+  font-weight: 600;
+  font-family: var(--font-data);
+  -webkit-tap-highlight-color: transparent;
+}
+#numpad button:active { background: #4A4F58; }
+#numpad button.np-fn { background: #2E323A; font-size: 17px; }
+#numpad button.np-fn:active { background: #3E434C; }
+#numpad button.np-enter { background: var(--red); font-family: var(--font-ui); font-size: 16px; }
+#numpad button.np-enter:active { background: var(--red-light); }
+
 /* ── SCROLLBAR STYLING ──────────────────────────────────────── */
 #sieve-section::-webkit-scrollbar { width: 4px; }
 #sieve-section::-webkit-scrollbar-track { background: transparent; }
@@ -791,11 +835,11 @@ input[type=number] { -moz-appearance: textfield; }
       </div>
       <div class="header-row">
         <span class="header-label">Date</span>
-        <input class="header-input" id="inp-date" type="date" style="text-align:left">
+        <input class="header-input" id="inp-date" type="date">
       </div>
       <div class="header-row">
         <span class="header-label">Time</span>
-        <input class="header-input" id="inp-time" type="time" style="text-align:left">
+        <input class="header-input" id="inp-time" type="time">
       </div>
     </div>
   </div>
@@ -1775,7 +1819,7 @@ function renderSieveSection() {
       html += `<div class="section-label">Coarse Sieves</div>
       <div class="weight-row">
         <span class="weight-label">Initial Weight:</span>
-        <input class="weight-input" id="inp-initial-weight" name="weight_coarse_initial" type="number" step="any" inputmode="decimal" enterkeyhint="next" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.initialWeight ?? ''}" placeholder="">
+        <input class="weight-input" id="inp-initial-weight" name="weight_coarse_initial" type="text" inputmode="none" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.initialWeight ?? ''}" placeholder="">
         ${moisture !== null ? `<span class="weight-computed${moisture < 0 ? ' red':''}">${moisture}% moisture</span>` : ''}
       </div>`;
     } else {
@@ -1801,18 +1845,18 @@ function renderSieveSection() {
       const fineMoisture = calcMoisture(tab.fineInitialWeight, tab.dryWeight);
       html += `<div class="weight-row">
         <span class="weight-label">Initial Weight:</span>
-        <input class="weight-input" id="inp-fine-initial-weight" name="weight_fine_initial" type="number" step="any" inputmode="decimal" enterkeyhint="next" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.fineInitialWeight ?? ''}" placeholder="">
+        <input class="weight-input" id="inp-fine-initial-weight" name="weight_fine_initial" type="text" inputmode="none" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.fineInitialWeight ?? ''}" placeholder="">
         ${fineMoisture !== null ? `<span class="weight-computed${fineMoisture < 0 ? ' red':''}">${fineMoisture}% moisture</span>` : ''}
       </div>`;
     }
     html += `<div class="weight-row">
       <span class="weight-label">Dry Weight:</span>
-      <input class="weight-input" id="inp-dry-weight" name="weight_dry" type="number" step="any" inputmode="decimal" enterkeyhint="next" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.dryWeight ?? ''}" placeholder="">
+      <input class="weight-input" id="inp-dry-weight" name="weight_dry" type="text" inputmode="none" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.dryWeight ?? ''}" placeholder="">
     </div>`;
     if (fineSectionMode === 'Washed') {
       html += `<div class="weight-row">
         <span class="weight-label">Washed Dry Weight:</span>
-        <input class="weight-input" id="inp-washed-dry" name="weight_washed_dry" type="number" step="any" inputmode="decimal" enterkeyhint="next" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.washedDryWeight ?? ''}" placeholder="">
+        <input class="weight-input" id="inp-washed-dry" name="weight_washed_dry" type="text" inputmode="none" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.washedDryWeight ?? ''}" placeholder="">
       </div>`;
     }
     html += renderSieveTable(tab, fineRows, 'Fine', totalFine);
@@ -1913,12 +1957,12 @@ function renderSieveTable(tab, rows, type, totalWeight) {
       <span class="sieve-name" style="grid-row:${gridRow};grid-column:1">${row.sieveLabel}</span>
       <span class="pct-passing${inSpec ? ' in-spec' : outSpec ? ' out-spec' : ''}" style="grid-row:${gridRow};grid-column:4" data-label="${esc(row.sieveLabel)}" data-type="${type}">${isPan || pct === null ? '' : pct + '%'}</span>
       <span class="spec-range" style="grid-row:${gridRow};grid-column:5">${isPan ? '' : specLabel}</span>`;
-    cumInputs += `<input class="sieve-input" type="number" step="any" inputmode="decimal" enterkeyhint="next" autocomplete="off"
+    cumInputs += `<input class="sieve-input" type="text" inputmode="none" autocomplete="off"
         autocorrect="off" autocapitalize="off" spellcheck="false"
         name="qty_${type.toLowerCase()}_${i}" style="grid-row:${gridRow};grid-column:2"
         data-label="${esc(row.sieveLabel)}" data-type="${type}" data-field="cumulative"
         value="${cumVal}" ${locked ? 'disabled' : ''}>`;
-    indInputs += `<input class="${indClass}" type="number" step="any" inputmode="decimal" enterkeyhint="${isPan ? 'done' : 'next'}" autocomplete="off"
+    indInputs += `<input class="${indClass}" type="text" inputmode="none" autocomplete="off"
         autocorrect="off" autocapitalize="off" spellcheck="false"
         name="qty2_${type.toLowerCase()}_${i}" style="grid-row:${gridRow};grid-column:3"
         data-label="${esc(row.sieveLabel)}" data-type="${type}" data-field="individual"
@@ -1955,6 +1999,35 @@ function esc(str) {
     .replace(/"/g, '&quot;');
 }
 
+// Move focus from a data-entry input: 'enter'/'next' → next input in the
+// same column (or blur+dismiss on the last/Pan row), 'prev' → previous.
+// Used by both the physical-keyboard handler and the on-screen numpad, so
+// navigation behavior can never drift between the two.
+function sieveNav(el, mode) {
+  const isSieve = el.classList.contains('sieve-input');
+  if (!isSieve) { // weight inputs: Enter just closes out
+    if (mode === 'enter' || mode === 'next') { el.blur(); return 'blur'; }
+    return false;
+  }
+  const { field, type } = el.dataset;
+  const all = Array.from(document.querySelectorAll(
+    `.sieve-input[data-field="${field}"][data-type="${type}"]:not(:disabled)`
+  ));
+  const idx = all.indexOf(el);
+  const isPan = el.dataset.label === 'Pan';
+  const isLast = idx < 0 || idx >= all.length - 1;
+  if (mode === 'peek-last') return (isPan || isLast) ? 'is-last' : false;
+  if (mode === 'prev') {
+    if (idx > 0) { all[idx - 1].focus({ preventScroll: true }); all[idx - 1].select(); }
+    return true;
+  }
+  // 'enter' / 'next'
+  if (isPan || isLast) { el.blur(); return 'blur'; }
+  all[idx + 1].focus({ preventScroll: true });
+  all[idx + 1].select();
+  return true;
+}
+
 function bindSieveEvents(tab) {
   // Sieve inputs
   document.querySelectorAll('.sieve-input[data-field]').forEach(input => {
@@ -1984,27 +2057,15 @@ function bindSieveEvents(tab) {
         renderTabs();
       });
     });
-    // Keyboard enter moves to next input; on the Pan row (last), blur to close the keypad.
+    // Physical keyboard: Enter advances (blur on last/Pan); Tab blurs on last/Pan.
     input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === 'Tab') {
-        const isPan = e.target.dataset.label === 'Pan';
-        const field = e.target.dataset.field;
-        const type = e.target.dataset.type;
-        const allInputs = Array.from(document.querySelectorAll(
-          `.sieve-input[data-field="${field}"][data-type="${type}"]:not(:disabled)`
-        ));
-        const idx = allInputs.indexOf(e.target);
-        const isLast = idx < 0 || idx >= allInputs.length - 1;
-        if (isPan || isLast) {
-          // Last field in the section — dismiss keyboard, don't jump anywhere.
-          e.preventDefault();
-          e.target.blur();
-        } else if (e.key === 'Enter') {
-          e.preventDefault();
-          allInputs[idx + 1].focus({ preventScroll: true });
-          allInputs[idx + 1].select();
-        }
-        // Tab on non-last: let browser handle naturally
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        sieveNav(e.target, 'enter');
+      } else if (e.key === 'Tab') {
+        const r = sieveNav(e.target, 'peek-last');
+        if (r === 'is-last') { e.preventDefault(); e.target.blur(); }
+        // otherwise let the browser tab naturally
       }
     });
   });
@@ -2403,16 +2464,16 @@ async function init() {
   // Prevent Up/Down arrow keys and mouse-wheel scroll from nudging number
   // inputs — delegated at the document level so it covers every sieve/
   // weight input across every render without needing to rebind per-row.
-  // Selector matches inputmode="decimal" rather than type="number" — all
-  // numeric fields switched to type="text" to dodge Safari's type="number"
+  // Numeric fields are type="text" + inputmode="none" (custom numpad), so
+  // match by class. This dodges Safari's type="number"
   // payment-autofill heuristic, which ignored autocomplete="off".
   document.addEventListener('keydown', (e) => {
-    if (e.target.matches?.('input[inputmode="decimal"]') && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+    if (e.target.matches?.('.sieve-input, .weight-input') && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
       e.preventDefault();
     }
   });
   document.addEventListener('wheel', (e) => {
-    if (document.activeElement?.matches?.('input[inputmode="decimal"]')) {
+    if (document.activeElement?.matches?.('.sieve-input, .weight-input')) {
       document.activeElement.blur();
     }
   }, { passive: true });
@@ -2422,12 +2483,12 @@ async function init() {
   // on-screen keyboard, but we want it to scroll only the sieve-section
   // container). Using preventScroll:true stops the browser scroll; we then
   // manually scroll the field into view within its scrollable container.
+  // Keep the focused field visible above the on-screen numpad.
   document.addEventListener('focusin', (e) => {
-    if (!e.target.matches?.('input[inputmode="decimal"]')) return;
-    // Small delay so the keyboard has time to appear and the layout reflows
+    if (!e.target.matches?.('.sieve-input, .weight-input')) return;
     setTimeout(() => {
       e.target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    }, 100);
+    }, 50);
   }, { passive: true });
 
   await openDB();
@@ -2511,9 +2572,99 @@ function toast(msg, type = '') {
 }
 
 // ── EVENT BINDINGS ────────────────────────────────────────────
+// ── VIEWPORT HEIGHT DRIVER ──────────────────────────────────
+// Keeps --vhpx equal to the real visible height. Fixes the stale white
+// bar under the tab bar after rotation on iPadOS (where 100vh/100dvh lie).
+function setAppHeight() {
+  const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  document.documentElement.style.setProperty('--vhpx', h + 'px');
+}
+setAppHeight();
+window.addEventListener('resize', setAppHeight);
+window.addEventListener('orientationchange', () => { setTimeout(setAppHeight, 250); setTimeout(setAppHeight, 600); });
+if (window.visualViewport) window.visualViewport.addEventListener('resize', setAppHeight);
+
 document.addEventListener('DOMContentLoaded', () => {
   // Pre-warm requestAnimationFrame so the first Enter keypress doesn't stall
   requestAnimationFrame(() => {});
+
+  // ── RUBBER-BAND LOCK ──────────────────────────────────────
+  // iPadOS 15 ignores overscroll-behavior (Safari 16+ only), so block
+  // touch-scrolling everywhere except the intentional scroll containers.
+  const SCROLLABLES = '#sieve-section, #queue-list, #tabbar, .picker-list, select, textarea';
+  document.addEventListener('touchmove', (e) => {
+    if (!e.target.closest?.(SCROLLABLES)) e.preventDefault();
+  }, { passive: false });
+  // Classic iOS trick: nudge off the exact scroll extremes so a drag inside
+  // the scroll container scrolls it instead of chaining to the page.
+  const ss = document.getElementById('sieve-section');
+  if (ss) ss.addEventListener('touchstart', () => {
+    if (ss.scrollTop <= 0) ss.scrollTop = 1;
+    const max = ss.scrollHeight - ss.clientHeight;
+    if (max > 0 && ss.scrollTop >= max) ss.scrollTop = max - 1;
+  }, { passive: true });
+
+  // ── ON-SCREEN NUMPAD ──────────────────────────────────────
+  const numpad = document.getElementById('numpad');
+  const NP_TARGETS = '.sieve-input, .weight-input';
+  let npInput = null;
+  // Inputs edited via the numpad. Programmatic .value changes never fire a
+  // native 'change' on blur, and saving lives in the 'change' handlers — so
+  // we dispatch it ourselves exactly once, on the way out of the field.
+  const npDirty = new WeakSet();
+
+  document.addEventListener('focusin', (e) => {
+    if (!e.target.matches?.(NP_TARGETS)) return;
+    npInput = e.target;
+    document.body.classList.add('numpad-open');
+  });
+  document.addEventListener('focusout', (e) => {
+    if (!e.target.matches?.(NP_TARGETS)) return;
+    if (npDirty.has(e.target)) {
+      npDirty.delete(e.target);
+      e.target.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    // Defer: if focus lands on another data-entry input, keep the pad open.
+    setTimeout(() => {
+      const ae = document.activeElement;
+      if (ae && ae.matches?.(NP_TARGETS)) { npInput = ae; return; }
+      npInput = null;
+      document.body.classList.remove('numpad-open');
+    }, 0);
+  });
+
+  // pointerdown + preventDefault keeps focus on the input (no blur/flicker)
+  numpad.addEventListener('pointerdown', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    e.preventDefault();
+    if (!npInput || !document.contains(npInput)) return;
+    const k = btn.dataset.k;
+    if (k === 'enter')      { sieveNav(npInput, 'enter'); return; }
+    if (k === 'next')       { sieveNav(npInput, 'next');  return; }
+    if (k === 'prev')       { sieveNav(npInput, 'prev');  return; }
+    if (k === 'bksp') {
+      const s = npInput.selectionStart ?? npInput.value.length;
+      const epos = npInput.selectionEnd ?? s;
+      if (epos > s) {
+        npInput.value = npInput.value.slice(0, s) + npInput.value.slice(epos);
+        npInput.setSelectionRange(s, s);
+      } else if (s > 0) {
+        npInput.value = npInput.value.slice(0, s - 1) + npInput.value.slice(s);
+        npInput.setSelectionRange(s - 1, s - 1);
+      }
+    } else {
+      // digit or decimal point — respect selection (fields are selected on
+      // focus, so the first keypress replaces the old value, like a real numpad)
+      const s = npInput.selectionStart ?? npInput.value.length;
+      const epos = npInput.selectionEnd ?? s;
+      if (k === '.' && npInput.value.slice(0, s).includes('.') && epos <= s) return;
+      npInput.value = npInput.value.slice(0, s) + k + npInput.value.slice(epos);
+      npInput.setSelectionRange(s + 1, s + 1);
+    }
+    npDirty.add(npInput);
+    npInput.dispatchEvent(new Event('input', { bubbles: true }));
+  });
 
   // New tab
   document.getElementById('btn-new-tab').addEventListener('click', async () => {
@@ -2758,5 +2909,18 @@ function openCustomDialog() {
   showOverlay('overlay-custom');
 }
 </script>
+
+<!-- ── ON-SCREEN NUMPAD ─────────────────────────────────────────
+     iPadOS has no phone-style numeric keypad — the OS always shows the
+     full keyboard. inputmode="none" suppresses the OS keyboard entirely
+     for the data-entry fields and this pad handles input instead. It also
+     eliminates keyboard-driven viewport resizes (the source of the
+     scroll-jump and stale-height problems). -->
+<div id="numpad" aria-hidden="true">
+  <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button><button data-k="bksp" class="np-fn">⌫</button>
+  <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button><button data-k="prev" class="np-fn">▲</button>
+  <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button><button data-k="next" class="np-fn">▼</button>
+  <button data-k=".">.</button><button data-k="0">0</button><button data-k="enter" class="np-enter" style="grid-column: span 2">Enter</button>
+</div>
 </body>
 </html>
