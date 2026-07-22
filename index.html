@@ -21,19 +21,19 @@
   --red-dark:   #6B0000;
   --red-light:  #A50000;
   --charcoal:   #1A1A1A;
-  --stone:      #F5F4F2;
+  --stone:      #E8E6E2;
   --white:      #FFFFFF;
-  --border:     #E2E0DC;
-  --steel:      #6B7280;
-  --steel-lt:   #9CA3AF;
+  --border:     #C8C5BF;
+  --steel:      #4B5260;
+  --steel-lt:   #737D8C;
   --text:       #1A1A1A;
-  --text-sub:   #4B5563;
+  --text-sub:   #353D4A;
   --pass-green: #166534;
   --fail-red:   #991B1B;
-  --input-bg:   #FAFAF9;
-  --row-h:      clamp(38px, 5vw, 52px);
+  --input-bg:   #F2F0EC;
+  --row-h:      clamp(42px, 5.5vw, 56px);
   --header-h:   clamp(130px, 18vh, 180px);
-  --tabbar-h:   52px;
+  --tabbar-h:   56px;
   --font-ui:    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
   --font-data:  'IBM Plex Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', monospace;
   --radius:     6px;
@@ -43,7 +43,7 @@
 /* ── RESET ──────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; overflow: hidden; background: var(--stone); }
-body { font-family: var(--font-ui); font-size: 14px; color: var(--text); display: flex; flex-direction: column; }
+body { font-family: var(--font-ui); font-size: 15px; color: var(--text); display: flex; flex-direction: column; }
 input, select, button, textarea { font-family: inherit; font-size: inherit; border: none; outline: none; background: none; }
 button { cursor: pointer; }
 
@@ -61,7 +61,7 @@ button { cursor: pointer; }
   background: var(--red);
   color: var(--white);
   flex-shrink: 0;
-  padding: 10px 14px 8px;
+  padding: max(10px, env(safe-area-inset-top)) 14px 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,.25);
   z-index: 10;
 }
@@ -100,7 +100,7 @@ button { cursor: pointer; }
 }
 .header-input {
   color: var(--white);
-  font-size: clamp(12px, 1.8vw, 14px);
+  font-size: clamp(13px, 2vw, 15px);
   font-weight: 500;
   flex: 1;
   min-width: 0;
@@ -109,7 +109,7 @@ button { cursor: pointer; }
 .header-input::placeholder { color: rgba(255,255,255,.5); }
 .header-input option { color: var(--text); background: var(--white); }
 select.header-input { cursor: pointer; }
-#quarry-row { grid-column: 1 / -1; }
+/* quarry-row uses default grid placement — same half-width as product-row */
 #product-row { grid-column: 1 / 2; }
 #type-row { grid-column: 2 / 3; }
 
@@ -148,7 +148,7 @@ select.header-input { cursor: pointer; }
 
 /* ── SECTION HEADERS ────────────────────────────────────────── */
 .section-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .8px;
@@ -173,14 +173,14 @@ select.header-input { cursor: pointer; }
   gap: 8px;
 }
 .weight-label {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-sub);
   width: 130px;
   flex-shrink: 0;
 }
 .weight-input {
   font-family: var(--font-data);
-  font-size: 13px;
+  font-size: 14px;
   background: var(--input-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -192,7 +192,7 @@ select.header-input { cursor: pointer; }
 .weight-input:focus { border-color: var(--red); box-shadow: 0 0 0 2px rgba(139,0,0,.1); }
 .weight-computed {
   font-family: var(--font-data);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-sub);
   margin-left: 4px;
 }
@@ -204,7 +204,7 @@ select.header-input { cursor: pointer; }
   padding: 0 14px 4px;
   margin-bottom: 4px;
   display: grid;
-  grid-template-columns: 52px 1fr 1fr 70px 70px;
+  grid-template-columns: 56px 1fr 1fr 74px 74px;
   column-gap: 4px;
   row-gap: 6px;
   align-items: center;
@@ -236,14 +236,14 @@ select.header-input { cursor: pointer; }
 
 .sieve-name {
   font-family: var(--font-data);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-sub);
   text-align: center;
 }
 .sieve-input {
   font-family: var(--font-data);
-  font-size: 13px;
+  font-size: 14px;
   background: var(--input-bg);
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -277,7 +277,7 @@ select.header-input { cursor: pointer; }
 
 .pct-passing {
   font-family: var(--font-data);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   text-align: center;
   color: var(--steel);
@@ -287,14 +287,14 @@ select.header-input { cursor: pointer; }
 
 .spec-range {
   font-family: var(--font-data);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--steel-lt);
   text-align: center;
 }
 
 /* ── NOTES & ACTIONS ────────────────────────────────────────── */
 #notes-section {
-  padding: 8px 14px calc(8px + env(safe-area-inset-bottom));
+  padding: 8px 14px max(8px, env(safe-area-inset-bottom));
   margin-top: auto;
 }
 #notes-input {
@@ -304,7 +304,7 @@ select.header-input { cursor: pointer; }
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 8px 10px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text);
   resize: none;
   box-shadow: var(--shadow);
@@ -320,7 +320,7 @@ select.header-input { cursor: pointer; }
   flex: 1;
   background: var(--red);
   color: var(--white);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   padding: 10px;
   border-radius: var(--radius);
@@ -359,7 +359,7 @@ select.header-input { cursor: pointer; }
 .tab-btn {
   flex-shrink: 0;
   padding: 0 14px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: rgba(255,255,255,.6);
   white-space: nowrap;
@@ -565,7 +565,7 @@ select.header-input { cursor: pointer; }
 #queue-list { flex: 1; overflow-y: auto; padding: 12px; }
 #queue-footer {
   flex-shrink: 0;
-  padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+  padding: 12px 14px max(12px, env(safe-area-inset-bottom));
   border-top: 1px solid var(--border);
 }
 #btn-sign-out {
@@ -713,10 +713,10 @@ select.header-input { cursor: pointer; }
   #quarry-row { grid-column: 1 / 2; }
   #product-row { grid-column: 2 / 3; }
   #type-row { grid-column: 3 / 4; }
-  .sieve-table { grid-template-columns: 60px 1fr 1fr 80px 90px; }
+  .sieve-table { grid-template-columns: 64px 1fr 1fr 84px 94px; }
 }
 @media (max-width: 380px) {
-  .sieve-table { grid-template-columns: 44px 1fr 1fr 60px 60px; }
+  .sieve-table { grid-template-columns: 48px 1fr 1fr 64px 64px; }
   .sieve-col-label, .spec-range, .pct-passing { font-size: 10px; }
 }
 </style>
@@ -1016,42 +1016,124 @@ const CONFIG = {
 };
 
 // ── MASTER SIEVE REFERENCE ────────────────────────────────────
-const COARSE_SIEVES = [
-  { label:'8"',     order:170 }, { label:'6"',     order:160 },
-  { label:'4"',     order:150 }, { label:'3"',     order:140 },
-  { label:'2"',     order:130 }, { label:'1 7/8"', order:125 },
-  { label:'1 1/2"', order:120 }, { label:'1 1/4"', order:110 },
-  { label:'1"',     order:100 }, { label:'3/4"',   order:90  },
-  { label:'5/8"',   order:80  }, { label:'9/16"',  order:75  },
-  { label:'1/2"',   order:70  }, { label:'3/8"',   order:60  },
-  { label:'#4',     order:50  }, { label:'#8',     order:45  },
-  { label:'#10',    order:40  }, { label:'#30',    order:30  },
-  { label:'#40',    order:20  }, { label:'#60',    order:15  },
-  { label:'#200',   order:12  },
-];
-const FINE_SIEVES = [
-  { label:'3/8"',  order:340 }, { label:'#4',   order:330 },
-  { label:'#8',    order:320 }, { label:'#10',  order:310 },
-  { label:'#16',   order:300 }, { label:'#20',  order:290 },
-  { label:'#30',   order:280 }, { label:'#40',  order:270 },
-  { label:'#50',   order:260 }, { label:'#60',  order:250 },
-  { label:'#80',   order:240 }, { label:'#100', order:230 },
-  { label:'#200',  order:220 }, { label:'#325', order:210 },
+// Single source of truth for every sieve the app will ever know about.
+// To add a sieve: add one entry here (and the matching SharePoint columns).
+// key matches the SharePoint column name (Products list spec col, and
+// Master_Log result col with "_Pct" suffix).
+const SIEVE_DEFS = [
+  // ----- Coarse inch sieves -----
+  { type:'Coarse', label:'8"'     , key:'Coarse_8in'    , mm:203.200, order:2000 },
+  { type:'Coarse', label:'6"'     , key:'Coarse_6in'    , mm:152.400, order:1900 },
+  { type:'Coarse', label:'5"'     , key:'Coarse_5in'    , mm:127.000, order:1850 },
+  { type:'Coarse', label:'4"'     , key:'Coarse_4in'    , mm:101.600, order:1800 },
+  { type:'Coarse', label:'3-1/2"', key:'Coarse_3_1_2in', mm:88.900,  order:1750 },
+  { type:'Coarse', label:'3"'     , key:'Coarse_3in'    , mm:76.200,  order:1700 },
+  { type:'Coarse', label:'2-1/2"', key:'Coarse_2_1_2in', mm:63.500,  order:1650 },
+  { type:'Coarse', label:'2"'     , key:'Coarse_2in'    , mm:50.800,  order:1600 },
+  { type:'Coarse', label:'1-7/8"', key:'Coarse_1_7_8in', mm:47.625,  order:1575 },
+  { type:'Coarse', label:'1-3/4"', key:'Coarse_1_3_4in', mm:44.450,  order:1550 },
+  { type:'Coarse', label:'1-1/2"', key:'Coarse_1_1_2in', mm:38.100,  order:1500 },
+  { type:'Coarse', label:'1-3/8"', key:'Coarse_1_3_8in', mm:34.925,  order:1475 },
+  { type:'Coarse', label:'1-1/4"', key:'Coarse_1_1_4in', mm:31.750,  order:1450 },
+  { type:'Coarse', label:'1-1/8"', key:'Coarse_1_1_8in', mm:28.575,  order:1425 },
+  { type:'Coarse', label:'1"'     , key:'Coarse_1in'    , mm:25.400,  order:1400 },
+  { type:'Coarse', label:'7/8"'   , key:'Coarse_7_8in'  , mm:22.225,  order:1375 },
+  { type:'Coarse', label:'3/4"'   , key:'Coarse_3_4in'  , mm:19.050,  order:1350 },
+  { type:'Coarse', label:'5/8"'   , key:'Coarse_5_8in'  , mm:15.875,  order:1325 },
+  { type:'Coarse', label:'9/16"'  , key:'Coarse_9_16in' , mm:14.288,  order:1300 },
+  { type:'Coarse', label:'1/2"'   , key:'Coarse_1_2in'  , mm:12.700,  order:1275 },
+  { type:'Coarse', label:'7/16"'  , key:'Coarse_7_16in' , mm:11.113,  order:1250 },
+  { type:'Coarse', label:'3/8"'   , key:'Coarse_3_8in'  , mm:9.525,   order:1200 },
+  { type:'Coarse', label:'5/16"'  , key:'Coarse_5_16in' , mm:7.938,   order:1175 },
+  { type:'Coarse', label:'1/4"'   , key:'Coarse_1_4in'  , mm:6.350,   order:1150 },
+  // ----- Coarse numbered sieves -----
+  { type:'Coarse', label:'#3'     , key:'Coarse_No3'    , mm:6.730,   order:1140 },
+  { type:'Coarse', label:'#3\u00bd', key:'Coarse_No3_5' , mm:5.613,   order:1130 },
+  { type:'Coarse', label:'#4'     , key:'Coarse_No4'    , mm:4.750,   order:1100 },
+  { type:'Coarse', label:'#5'     , key:'Coarse_No5'    , mm:4.000,   order:1075 },
+  { type:'Coarse', label:'#6'     , key:'Coarse_No6'    , mm:3.350,   order:1050 },
+  { type:'Coarse', label:'#7'     , key:'Coarse_No7'    , mm:2.800,   order:1025 },
+  { type:'Coarse', label:'#8'     , key:'Coarse_No8'    , mm:2.360,   order:1000 },
+  { type:'Coarse', label:'#10'    , key:'Coarse_No10'   , mm:2.000,   order:975  },
+  { type:'Coarse', label:'#12'    , key:'Coarse_No12'   , mm:1.700,   order:950  },
+  { type:'Coarse', label:'#14'    , key:'Coarse_No14'   , mm:1.400,   order:925  },
+  { type:'Coarse', label:'#16'    , key:'Coarse_No16'   , mm:1.180,   order:900  },
+  { type:'Coarse', label:'#18'    , key:'Coarse_No18'   , mm:1.000,   order:875  },
+  { type:'Coarse', label:'#20'    , key:'Coarse_No20'   , mm:0.850,   order:850  },
+  { type:'Coarse', label:'#25'    , key:'Coarse_No25'   , mm:0.710,   order:825  },
+  { type:'Coarse', label:'#30'    , key:'Coarse_No30'   , mm:0.600,   order:800  },
+  { type:'Coarse', label:'#35'    , key:'Coarse_No35'   , mm:0.500,   order:775  },
+  { type:'Coarse', label:'#40'    , key:'Coarse_No40'   , mm:0.425,   order:750  },
+  { type:'Coarse', label:'#45'    , key:'Coarse_No45'   , mm:0.355,   order:725  },
+  { type:'Coarse', label:'#50'    , key:'Coarse_No50'   , mm:0.300,   order:700  },
+  { type:'Coarse', label:'#60'    , key:'Coarse_No60'   , mm:0.250,   order:675  },
+  { type:'Coarse', label:'#70'    , key:'Coarse_No70'   , mm:0.212,   order:650  },
+  { type:'Coarse', label:'#80'    , key:'Coarse_No80'   , mm:0.180,   order:625  },
+  { type:'Coarse', label:'#100'   , key:'Coarse_No100'  , mm:0.150,   order:600  },
+  { type:'Coarse', label:'#120'   , key:'Coarse_No120'  , mm:0.125,   order:575  },
+  { type:'Coarse', label:'#140'   , key:'Coarse_No140'  , mm:0.106,   order:550  },
+  { type:'Coarse', label:'#170'   , key:'Coarse_No170'  , mm:0.090,   order:525  },
+  { type:'Coarse', label:'#200'   , key:'Coarse_No200'  , mm:0.075,   order:500  },
+  { type:'Coarse', label:'#230'   , key:'Coarse_No230'  , mm:0.063,   order:475  },
+  { type:'Coarse', label:'#270'   , key:'Coarse_No270'  , mm:0.053,   order:450  },
+  { type:'Coarse', label:'#325'   , key:'Coarse_No325'  , mm:0.045,   order:425  },
+  { type:'Coarse', label:'#400'   , key:'Coarse_No400'  , mm:0.038,   order:400  },
+  { type:'Coarse', label:'#450'   , key:'Coarse_No450'  , mm:0.032,   order:375  },
+  { type:'Coarse', label:'#500'   , key:'Coarse_No500'  , mm:0.025,   order:350  },
+  { type:'Coarse', label:'#635'   , key:'Coarse_No635'  , mm:0.020,   order:325  },
+  // ----- Fine inch sieves -----
+  { type:'Fine',   label:'1"'     , key:'Fine_1in'      , mm:25.400,  order:5000 },
+  { type:'Fine',   label:'3/4"'   , key:'Fine_3_4in'    , mm:19.050,  order:4950 },
+  { type:'Fine',   label:'5/8"'   , key:'Fine_5_8in'    , mm:15.875,  order:4900 },
+  { type:'Fine',   label:'1/2"'   , key:'Fine_1_2in'    , mm:12.700,  order:4850 },
+  { type:'Fine',   label:'3/8"'   , key:'Fine_3_8in'    , mm:9.525,   order:4800 },
+  { type:'Fine',   label:'5/16"'  , key:'Fine_5_16in'   , mm:7.938,   order:4750 },
+  { type:'Fine',   label:'1/4"'   , key:'Fine_1_4in'    , mm:6.350,   order:4700 },
+  // ----- Fine numbered sieves -----
+  { type:'Fine',   label:'#4'     , key:'Fine_No4'      , mm:4.750,   order:4600 },
+  { type:'Fine',   label:'#5'     , key:'Fine_No5'      , mm:4.000,   order:4575 },
+  { type:'Fine',   label:'#6'     , key:'Fine_No6'      , mm:3.350,   order:4550 },
+  { type:'Fine',   label:'#7'     , key:'Fine_No7'      , mm:2.800,   order:4525 },
+  { type:'Fine',   label:'#8'     , key:'Fine_No8'      , mm:2.360,   order:4500 },
+  { type:'Fine',   label:'#10'    , key:'Fine_No10'     , mm:2.000,   order:4450 },
+  { type:'Fine',   label:'#12'    , key:'Fine_No12'     , mm:1.700,   order:4425 },
+  { type:'Fine',   label:'#14'    , key:'Fine_No14'     , mm:1.400,   order:4400 },
+  { type:'Fine',   label:'#16'    , key:'Fine_No16'     , mm:1.180,   order:4350 },
+  { type:'Fine',   label:'#18'    , key:'Fine_No18'     , mm:1.000,   order:4325 },
+  { type:'Fine',   label:'#20'    , key:'Fine_No20'     , mm:0.850,   order:4300 },
+  { type:'Fine',   label:'#25'    , key:'Fine_No25'     , mm:0.710,   order:4275 },
+  { type:'Fine',   label:'#30'    , key:'Fine_No30'     , mm:0.600,   order:4250 },
+  { type:'Fine',   label:'#35'    , key:'Fine_No35'     , mm:0.500,   order:4225 },
+  { type:'Fine',   label:'#40'    , key:'Fine_No40'     , mm:0.425,   order:4200 },
+  { type:'Fine',   label:'#45'    , key:'Fine_No45'     , mm:0.355,   order:4175 },
+  { type:'Fine',   label:'#50'    , key:'Fine_No50'     , mm:0.300,   order:4150 },
+  { type:'Fine',   label:'#60'    , key:'Fine_No60'     , mm:0.250,   order:4100 },
+  { type:'Fine',   label:'#70'    , key:'Fine_No70'     , mm:0.212,   order:4075 },
+  { type:'Fine',   label:'#80'    , key:'Fine_No80'     , mm:0.180,   order:4050 },
+  { type:'Fine',   label:'#100'   , key:'Fine_No100'    , mm:0.150,   order:4000 },
+  { type:'Fine',   label:'#120'   , key:'Fine_No120'    , mm:0.125,   order:3975 },
+  { type:'Fine',   label:'#140'   , key:'Fine_No140'    , mm:0.106,   order:3950 },
+  { type:'Fine',   label:'#170'   , key:'Fine_No170'    , mm:0.090,   order:3925 },
+  { type:'Fine',   label:'#200'   , key:'Fine_No200'    , mm:0.075,   order:3900 },
+  { type:'Fine',   label:'#230'   , key:'Fine_No230'    , mm:0.063,   order:3875 },
+  { type:'Fine',   label:'#270'   , key:'Fine_No270'    , mm:0.053,   order:3850 },
+  { type:'Fine',   label:'#325'   , key:'Fine_No325'    , mm:0.045,   order:3825 },
+  { type:'Fine',   label:'#400'   , key:'Fine_No400'    , mm:0.038,   order:3800 },
+  { type:'Fine',   label:'#450'   , key:'Fine_No450'    , mm:0.032,   order:3775 },
+  { type:'Fine',   label:'#500'   , key:'Fine_No500'    , mm:0.025,   order:3750 },
+  { type:'Fine',   label:'#635'   , key:'Fine_No635'    , mm:0.020,   order:3725 },
 ];
 
-// ── SIEVE → SHAREPOINT COLUMN MAPPING ──────────────────────────
-// Generates the exact list of SharePoint column names to create, one per
-// sieve, from the master reference above. Single source of truth — the
-// mock data, the SharePoint $select query, and the parsing logic all pull
-// from this same list, so there's nowhere for it to drift out of sync.
-function sieveKey(label, type) {
-  const safe = label.replace(/"/g, 'in').replace(/#/g, 'No').replace(/\//g, '_').replace(/\s+/g, '_');
-  return `${type}_${safe}`;
-}
-const SIEVE_COLUMNS = [
-  ...COARSE_SIEVES.map(s => ({ ...s, type: 'Coarse', key: sieveKey(s.label, 'Coarse') })),
-  ...FINE_SIEVES.map(s => ({ ...s, type: 'Fine', key: sieveKey(s.label, 'Fine') })),
-];
+// Fast lookup by key
+const SIEVE_BY_KEY = {};
+SIEVE_DEFS.forEach(s => { SIEVE_BY_KEY[s.key] = s; });
+
+// Convenience filtered lists (used by custom product picker)
+const COARSE_SIEVES = SIEVE_DEFS.filter(s => s.type === 'Coarse');
+const FINE_SIEVES   = SIEVE_DEFS.filter(s => s.type === 'Fine');
+
+// SIEVE_COLUMNS: what loadSharePointData() selects and what buildSubmissionRecord() writes.
+const SIEVE_COLUMNS = SIEVE_DEFS.map(s => ({ key: s.key, label: s.label, type: s.type, order: s.order }));
 
 // ── STATE ─────────────────────────────────────────────────────
 let state = {
@@ -1869,8 +1951,12 @@ function bindSieveEvents(tab) {
       if (field === 'cumulative') onCumulativeChange(tab, row, e.target.value);
       else onIndividualChange(tab, row, e.target.value);
       await saveTab(tab);
-      renderSieveSection();
-      renderTabs();
+      // Use rAF so any focus() called by keydown (Enter) lands before the
+      // re-render runs — prevents Enter from moving focus to the bottom.
+      requestAnimationFrame(() => {
+        renderSieveSection();
+        renderTabs();
+      });
     });
     // Keyboard enter moves to next input
     input.addEventListener('keydown', (e) => {
