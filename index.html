@@ -43,18 +43,18 @@
 /* ── RESET ──────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; overflow: hidden; background: var(--stone); }
+@supports (height: 100dvh) {
+  html, body { height: 100dvh; }
+}
 body { font-family: var(--font-ui); font-size: 15px; color: var(--text); display: flex; flex-direction: column; }
 input, select, button, textarea { font-family: inherit; font-size: inherit; border: none; outline: none; background: none; }
 button { cursor: pointer; }
 
 /* ── LAYOUT ─────────────────────────────────────────────────── */
-/* flex:1 (not height:100%) so #app shares space with #offline-banner when
-   it's showing, instead of claiming the full viewport height regardless
-   and pushing its own bottom content (the submit/delete bar) off-screen.
-   min-height:0 is needed alongside flex:1 — flex items default to
-   min-height:auto, which can stop them from shrinking to fit and defeats
-   the inner #sieve-section's own overflow-y:auto scrolling. */
-#app { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+/* flex:1 so #app fills remaining height below the offline-banner slot.
+   min-height:0 lets the inner #sieve-section shrink and scroll correctly.
+   position:relative anchors the offline-banner overlay. */
+#app { display: flex; flex-direction: column; flex: 1; min-height: 0; position: relative; }
 
 /* ── HEADER ─────────────────────────────────────────────────── */
 #header {
@@ -346,7 +346,8 @@ select.header-input { cursor: pointer; }
 /* ── TAB BAR ────────────────────────────────────────────────── */
 #tabbar {
   background: var(--red);
-  height: var(--tabbar-h);
+  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
   display: flex;
   align-items: stretch;
   flex-shrink: 0;
@@ -644,7 +645,7 @@ select.header-input { cursor: pointer; }
 /* ── TOAST ──────────────────────────────────────────────────── */
 #toast {
   position: fixed;
-  bottom: calc(var(--tabbar-h) + 12px);
+  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 12px);
   left: 50%;
   transform: translateX(-50%) translateY(20px);
   background: var(--charcoal);
@@ -692,13 +693,19 @@ select.header-input { cursor: pointer; }
 
 /* ── OFFLINE BANNER ─────────────────────────────────────────── */
 #offline-banner {
-  background: #92400E;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: rgba(146, 64, 14, 0.92);
   color: var(--white);
   font-size: 11px;
   font-weight: 600;
   text-align: center;
   padding: 3px;
+  z-index: 20;
   display: none;
+  backdrop-filter: blur(2px);
 }
 #offline-banner.show { display: block; }
 
@@ -737,11 +744,11 @@ select.header-input { cursor: pointer; }
   <p id="auth-status"></p>
 </div>
 
-<!-- OFFLINE BANNER -->
-<div id="offline-banner">⚠ Offline — data will sync when connected</div>
-
 <!-- MAIN APP -->
 <div id="app">
+
+  <!-- OFFLINE BANNER (inside app so it overlays the header) -->
+  <div id="offline-banner">⚠ Offline — data will sync when connected</div>
 
   <!-- HEADER -->
   <div id="header">
@@ -1761,7 +1768,7 @@ function renderSieveSection() {
       html += `<div class="section-label">Coarse Sieves</div>
       <div class="weight-row">
         <span class="weight-label">Initial Weight:</span>
-        <input class="weight-input" id="inp-initial-weight" name="weight_coarse_initial" type="text" inputmode="decimal" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.initialWeight ?? ''}" placeholder="">
+        <input class="weight-input" id="inp-initial-weight" pattern="[0-9.]*" name="weight_coarse_initial" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.initialWeight ?? ''}" placeholder="">
         ${moisture !== null ? `<span class="weight-computed${moisture < 0 ? ' red':''}">${moisture}% moisture</span>` : ''}
       </div>`;
     } else {
@@ -1787,22 +1794,22 @@ function renderSieveSection() {
       const fineMoisture = calcMoisture(tab.fineInitialWeight, tab.dryWeight);
       html += `<div class="weight-row">
         <span class="weight-label">Initial Weight:</span>
-        <input class="weight-input" id="inp-fine-initial-weight" name="weight_fine_initial" type="text" inputmode="decimal" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.fineInitialWeight ?? ''}" placeholder="">
+        <input class="weight-input" id="inp-fine-initial-weight" pattern="[0-9.]*" name="weight_fine_initial" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.fineInitialWeight ?? ''}" placeholder="">
         ${fineMoisture !== null ? `<span class="weight-computed${fineMoisture < 0 ? ' red':''}">${fineMoisture}% moisture</span>` : ''}
       </div>`;
     }
     html += `<div class="weight-row">
       <span class="weight-label">Dry Weight:</span>
-      <input class="weight-input" id="inp-dry-weight" name="weight_dry" type="text" inputmode="decimal" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.dryWeight ?? ''}" placeholder="">
+      <input class="weight-input" id="inp-dry-weight" pattern="[0-9.]*" name="weight_dry" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.dryWeight ?? ''}" placeholder="">
     </div>`;
     if (fineSectionMode === 'Washed') {
       html += `<div class="weight-row">
         <span class="weight-label">Washed Dry Weight:</span>
-        <input class="weight-input" id="inp-washed-dry" name="weight_washed_dry" type="text" inputmode="decimal" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.washedDryWeight ?? ''}" placeholder="">
+        <input class="weight-input" id="inp-washed-dry" pattern="[0-9.]*" name="weight_washed_dry" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.washedDryWeight ?? ''}" placeholder="">
       </div>`;
     }
     html += renderSieveTable(tab, fineRows, 'Fine', totalFine);
-    if (fineSectionMode === 'Washed' && tab.dryWeight && tab.washedDryWeight) {
+    if (fineSectionMode === 'Washed') {
       const lbw = calcLossByWash(tab);
       html += `<div class="weight-row" style="padding-left:22px;padding-right:22px;margin-top:2px">
         <span class="weight-label">Loss by Wash:</span>
@@ -1851,6 +1858,18 @@ function renderSieveSection() {
   if (deleteBtn) deleteBtn.addEventListener('click', () => showOverlay('overlay-delete'));
   bindSieveEvents(tab);
   restoreFocusInfo(focusInfo);
+
+  // Prevent the viewport from jumping when the on-screen keyboard appears.
+  // Instead of letting the browser scroll the entire page, we scroll only
+  // the sieve-section container to bring the focused row into view.
+  section.querySelectorAll('.sieve-input, .weight-input').forEach(input => {
+    input.addEventListener('focus', () => {
+      // Small delay so the keyboard has started appearing before we measure.
+      setTimeout(() => {
+        input.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      }, 100);
+    }, { passive: true });
+  });
 }
 
 function renderSieveTable(tab, rows, type, totalWeight) {
@@ -1887,12 +1906,12 @@ function renderSieveTable(tab, rows, type, totalWeight) {
       <span class="sieve-name" style="grid-row:${gridRow};grid-column:1">${row.sieveLabel}</span>
       <span class="pct-passing${inSpec ? ' in-spec' : outSpec ? ' out-spec' : ''}" style="grid-row:${gridRow};grid-column:4" data-label="${esc(row.sieveLabel)}" data-type="${type}">${isPan || pct === null ? '' : pct + '%'}</span>
       <span class="spec-range" style="grid-row:${gridRow};grid-column:5">${isPan ? '' : specLabel}</span>`;
-    cumInputs += `<input class="sieve-input" type="text" inputmode="decimal" autocomplete="off"
+    cumInputs += `<input class="sieve-input" type="text" inputmode="decimal" pattern="[0-9.]*" enterkeyhint="next" autocomplete="off"
         autocorrect="off" autocapitalize="off" spellcheck="false"
         name="qty_${type.toLowerCase()}_${i}" style="grid-row:${gridRow};grid-column:2"
         data-label="${esc(row.sieveLabel)}" data-type="${type}" data-field="cumulative"
         value="${cumVal}" ${locked ? 'disabled' : ''}>`;
-    indInputs += `<input class="${indClass}" type="text" inputmode="decimal" autocomplete="off"
+    indInputs += `<input class="${indClass}" type="text" inputmode="decimal" pattern="[0-9.]*" enterkeyhint="${isPan ? 'done' : 'next'}" autocomplete="off"
         autocorrect="off" autocapitalize="off" spellcheck="false"
         name="qty2_${type.toLowerCase()}_${i}" style="grid-row:${gridRow};grid-column:3"
         data-label="${esc(row.sieveLabel)}" data-type="${type}" data-field="individual"
@@ -1958,20 +1977,27 @@ function bindSieveEvents(tab) {
         renderTabs();
       });
     });
-    // Keyboard enter moves to next input
+    // Keyboard enter moves to next input; on the Pan row (last), blur to close the keypad.
     input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        const isPan = e.target.dataset.label === 'Pan';
         const field = e.target.dataset.field;
         const type = e.target.dataset.type;
         const allInputs = Array.from(document.querySelectorAll(
           `.sieve-input[data-field="${field}"][data-type="${type}"]:not(:disabled)`
         ));
         const idx = allInputs.indexOf(e.target);
-        if (idx >= 0 && idx < allInputs.length - 1) {
-          allInputs[idx + 1].focus();
+        const isLast = idx < 0 || idx >= allInputs.length - 1;
+        if (isPan || isLast) {
+          // Last field in the section — dismiss keyboard, don't jump anywhere.
+          e.preventDefault();
+          e.target.blur();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          allInputs[idx + 1].focus({ preventScroll: true });
           allInputs[idx + 1].select();
         }
+        // Tab on non-last: let browser handle naturally
       }
     });
   });
@@ -2382,6 +2408,19 @@ async function init() {
     if (document.activeElement?.matches?.('input[inputmode="decimal"]')) {
       document.activeElement.blur();
     }
+  }, { passive: true });
+
+  // Prevent iOS/iPadOS from scrolling the full page when a sieve/weight
+  // input is focused (the browser tries to scroll the field above the
+  // on-screen keyboard, but we want it to scroll only the sieve-section
+  // container). Using preventScroll:true stops the browser scroll; we then
+  // manually scroll the field into view within its scrollable container.
+  document.addEventListener('focusin', (e) => {
+    if (!e.target.matches?.('input[inputmode="decimal"]')) return;
+    // Small delay so the keyboard has time to appear and the layout reflows
+    setTimeout(() => {
+      e.target.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }, 100);
   }, { passive: true });
 
   await openDB();
