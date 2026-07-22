@@ -28,6 +28,7 @@
   --steel-lt:   #737D8C;
   --text:       #1A1A1A;
   --text-sub:   #353D4A;
+  --data-val:   #1A1F2B;  /* sieve inputs, spec values, computed weights */
   --pass-green: #166534;
   --fail-red:   #991B1B;
   --input-bg:   #F2F0EC;
@@ -42,7 +43,7 @@
 
 /* ── RESET ──────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; overflow: hidden; background: var(--stone); }
+html, body { height: 100%; overflow: hidden; background: var(--stone); overscroll-behavior: none; }
 @supports (height: 100dvh) {
   html, body { height: 100dvh; }
 }
@@ -54,7 +55,7 @@ button { cursor: pointer; }
 /* flex:1 so #app fills remaining height below the offline-banner slot.
    min-height:0 lets the inner #sieve-section shrink and scroll correctly.
    position:relative anchors the offline-banner overlay. */
-#app { display: flex; flex-direction: column; flex: 1; min-height: 0; position: relative; }
+#app { display: flex; flex-direction: column; flex: 1; min-height: 0; position: relative; overscroll-behavior: none; }
 
 /* ── HEADER ─────────────────────────────────────────────────── */
 #header {
@@ -134,6 +135,7 @@ select.header-input { cursor: pointer; }
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   padding: 0 0 8px;
   display: flex;
   flex-direction: column;
@@ -186,14 +188,14 @@ select.header-input { cursor: pointer; }
   border-radius: var(--radius);
   padding: 5px 8px;
   width: 100px;
-  color: var(--text);
+  color: var(--data-val);
   -webkit-appearance: none;
 }
 .weight-input:focus { border-color: var(--red); box-shadow: 0 0 0 2px rgba(139,0,0,.1); }
 .weight-computed {
   font-family: var(--font-data);
   font-size: 13px;
-  color: var(--text-sub);
+  color: var(--data-val);
   margin-left: 4px;
 }
 .weight-computed.red { color: var(--fail-red); font-weight: 600; }
@@ -255,13 +257,18 @@ select.header-input { cursor: pointer; }
   inputmode: decimal;
 }
 .sieve-input:focus { border-color: var(--red); box-shadow: 0 0 0 2px rgba(139,0,0,.1); background: var(--white); }
-.sieve-input.auto-calc { background: #F0EFED; color: var(--text-sub); }
+.sieve-input.auto-calc { background: #F0EFED; color: var(--steel); }
 .sieve-input.negative { color: var(--fail-red); }
 .sieve-input:disabled { background: #EBEBEA; color: var(--steel-lt); cursor: not-allowed; }
 /* Hide Safari/WebKit's autofill decoration icons (contact/credentials/
    credit-card buttons that can appear inside a focused field) on every
    numeric input — belt-and-suspenders alongside autocomplete="off" etc.,
    since none of those alone reliably stops Safari's autofill heuristics. */
+/* Hide number input spinners */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
+
 .sieve-input::-webkit-contacts-auto-fill-button,
 .sieve-input::-webkit-credentials-auto-fill-button,
 .sieve-input::-webkit-caps-lock-indicator,
@@ -288,7 +295,7 @@ select.header-input { cursor: pointer; }
 .spec-range {
   font-family: var(--font-data);
   font-size: 12px;
-  color: var(--steel-lt);
+  color: var(--steel);
   text-align: center;
 }
 
@@ -784,11 +791,11 @@ select.header-input { cursor: pointer; }
       </div>
       <div class="header-row">
         <span class="header-label">Date</span>
-        <input class="header-input" id="inp-date" type="date">
+        <input class="header-input" id="inp-date" type="date" style="text-align:left">
       </div>
       <div class="header-row">
         <span class="header-label">Time</span>
-        <input class="header-input" id="inp-time" type="time">
+        <input class="header-input" id="inp-time" type="time" style="text-align:left">
       </div>
     </div>
   </div>
@@ -1768,7 +1775,7 @@ function renderSieveSection() {
       html += `<div class="section-label">Coarse Sieves</div>
       <div class="weight-row">
         <span class="weight-label">Initial Weight:</span>
-        <input class="weight-input" id="inp-initial-weight" pattern="[0-9.]*" name="weight_coarse_initial" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.initialWeight ?? ''}" placeholder="">
+        <input class="weight-input" id="inp-initial-weight" name="weight_coarse_initial" type="number" step="any" inputmode="decimal" enterkeyhint="next" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.initialWeight ?? ''}" placeholder="">
         ${moisture !== null ? `<span class="weight-computed${moisture < 0 ? ' red':''}">${moisture}% moisture</span>` : ''}
       </div>`;
     } else {
@@ -1777,7 +1784,7 @@ function renderSieveSection() {
     html += renderSieveTable(tab, coarseRows, 'Coarse', totalCoarse);
     html += `<div class="weight-row" style="padding-left:22px;padding-right:22px;margin-top:2px">
       <span class="weight-label">Total Coarse Weight:</span>
-      <span class="total-value" data-type="Coarse" style="font-family:var(--font-data);font-size:13px;color:var(--text-sub)">${totalCoarse > 0 ? totalCoarse.toFixed(1) : ''}</span>
+      <span class="total-value" data-type="Coarse" style="font-family:var(--font-data);font-size:13px;color:var(--data-val)">${totalCoarse > 0 ? totalCoarse.toFixed(1) : ''}</span>
     </div>`;
   }
 
@@ -1794,18 +1801,18 @@ function renderSieveSection() {
       const fineMoisture = calcMoisture(tab.fineInitialWeight, tab.dryWeight);
       html += `<div class="weight-row">
         <span class="weight-label">Initial Weight:</span>
-        <input class="weight-input" id="inp-fine-initial-weight" pattern="[0-9.]*" name="weight_fine_initial" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.fineInitialWeight ?? ''}" placeholder="">
+        <input class="weight-input" id="inp-fine-initial-weight" name="weight_fine_initial" type="number" step="any" inputmode="decimal" enterkeyhint="next" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.fineInitialWeight ?? ''}" placeholder="">
         ${fineMoisture !== null ? `<span class="weight-computed${fineMoisture < 0 ? ' red':''}">${fineMoisture}% moisture</span>` : ''}
       </div>`;
     }
     html += `<div class="weight-row">
       <span class="weight-label">Dry Weight:</span>
-      <input class="weight-input" id="inp-dry-weight" pattern="[0-9.]*" name="weight_dry" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.dryWeight ?? ''}" placeholder="">
+      <input class="weight-input" id="inp-dry-weight" name="weight_dry" type="number" step="any" inputmode="decimal" enterkeyhint="next" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.dryWeight ?? ''}" placeholder="">
     </div>`;
     if (fineSectionMode === 'Washed') {
       html += `<div class="weight-row">
         <span class="weight-label">Washed Dry Weight:</span>
-        <input class="weight-input" id="inp-washed-dry" pattern="[0-9.]*" name="weight_washed_dry" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.washedDryWeight ?? ''}" placeholder="">
+        <input class="weight-input" id="inp-washed-dry" name="weight_washed_dry" type="number" step="any" inputmode="decimal" enterkeyhint="next" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.washedDryWeight ?? ''}" placeholder="">
       </div>`;
     }
     html += renderSieveTable(tab, fineRows, 'Fine', totalFine);
@@ -1813,7 +1820,7 @@ function renderSieveSection() {
       const lbw = calcLossByWash(tab);
       html += `<div class="weight-row" style="padding-left:22px;padding-right:22px;margin-top:2px">
         <span class="weight-label">Loss by Wash:</span>
-        <span style="font-family:var(--font-data);font-size:13px;color:var(--text-sub)">${lbw.toFixed(2)}</span>
+        <span style="font-family:var(--font-data);font-size:13px;color:var(--data-val)">${lbw.toFixed(2)}</span>
       </div>`;
     }
     {
@@ -1825,7 +1832,7 @@ function renderSieveSection() {
         : '';
       html += `<div class="weight-row" style="padding-left:22px;padding-right:22px;margin-top:2px">
         <span class="weight-label">Total Fine Weight:</span>
-        <span class="total-value" data-type="Fine" style="font-family:var(--font-data);font-size:13px;color:var(--text-sub)">${totalFine > 0 ? totalFine.toFixed(1) : ''}</span>${lossStr}
+        <span class="total-value" data-type="Fine" style="font-family:var(--font-data);font-size:13px;color:var(--data-val)">${totalFine > 0 ? totalFine.toFixed(1) : ''}</span>${lossStr}
       </div>`;
     }
   }
@@ -1906,12 +1913,12 @@ function renderSieveTable(tab, rows, type, totalWeight) {
       <span class="sieve-name" style="grid-row:${gridRow};grid-column:1">${row.sieveLabel}</span>
       <span class="pct-passing${inSpec ? ' in-spec' : outSpec ? ' out-spec' : ''}" style="grid-row:${gridRow};grid-column:4" data-label="${esc(row.sieveLabel)}" data-type="${type}">${isPan || pct === null ? '' : pct + '%'}</span>
       <span class="spec-range" style="grid-row:${gridRow};grid-column:5">${isPan ? '' : specLabel}</span>`;
-    cumInputs += `<input class="sieve-input" type="text" inputmode="decimal" pattern="[0-9.]*" enterkeyhint="next" autocomplete="off"
+    cumInputs += `<input class="sieve-input" type="number" step="any" inputmode="decimal" enterkeyhint="next" autocomplete="off"
         autocorrect="off" autocapitalize="off" spellcheck="false"
         name="qty_${type.toLowerCase()}_${i}" style="grid-row:${gridRow};grid-column:2"
         data-label="${esc(row.sieveLabel)}" data-type="${type}" data-field="cumulative"
         value="${cumVal}" ${locked ? 'disabled' : ''}>`;
-    indInputs += `<input class="${indClass}" type="text" inputmode="decimal" pattern="[0-9.]*" enterkeyhint="${isPan ? 'done' : 'next'}" autocomplete="off"
+    indInputs += `<input class="${indClass}" type="number" step="any" inputmode="decimal" enterkeyhint="${isPan ? 'done' : 'next'}" autocomplete="off"
         autocorrect="off" autocapitalize="off" spellcheck="false"
         name="qty2_${type.toLowerCase()}_${i}" style="grid-row:${gridRow};grid-column:3"
         data-label="${esc(row.sieveLabel)}" data-type="${type}" data-field="individual"
@@ -2505,6 +2512,9 @@ function toast(msg, type = '') {
 
 // ── EVENT BINDINGS ────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  // Pre-warm requestAnimationFrame so the first Enter keypress doesn't stall
+  requestAnimationFrame(() => {});
+
   // New tab
   document.getElementById('btn-new-tab').addEventListener('click', async () => {
     await addNewTab();
