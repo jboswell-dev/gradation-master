@@ -87,7 +87,11 @@ body {
   position: fixed;
   inset: 0;
   width: 100%;
-  height: var(--vhpx, 100%);
+  /* --vhpx (visualViewport.height) excludes the home-indicator area in an
+     installed PWA, so add the bottom inset back to reach the physical screen
+     bottom — otherwise an unpainted strip shows below the tab bar in
+     standalone mode. In Safari the inset is ~0, so this is a no-op there. */
+  height: calc(var(--vhpx, 100%) + env(safe-area-inset-bottom));
   overflow: hidden;
   background: var(--stone);
   overscroll-behavior: none;
@@ -451,14 +455,14 @@ input[type=number] { -moz-appearance: textfield; }
 #btn-delete svg, #btn-sg-delete svg { stroke: var(--btn-bg); }
 
 /* ── TAB BAR ────────────────────────────────────────────────── */
-/* Sits flush at the bottom of the visible area. Height is exactly --tabbar-h
-   with NO safe-area padding: the body height (--vhpx) is driven from
-   visualViewport.height, which already excludes the home-indicator zone, so
-   adding env(safe-area-inset-bottom) here would double-count it and leave a
-   colored strip below the tabs. */
+/* Reaches the physical bottom of the screen. Body height now includes the
+   bottom safe-area inset, so the tab bar paints down into the home-indicator
+   zone while its padding-bottom keeps the tabs/+ above the indicator. In
+   Safari the inset is ~0, so it just sits flush. */
 #tabbar {
   background: var(--tab2-bg);
-  height: var(--tabbar-h);
+  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
   display: flex;
   align-items: stretch;
   flex-shrink: 0;
@@ -796,7 +800,8 @@ body.screen-settings #tabbar { display: none; }
 }
 body.numpad-open #numpad { display: grid; }
 /* Make room so the focused row can scroll above the pad */
-body.numpad-open #sieve-section { padding-bottom: var(--numpad-h); }
+body.numpad-open #sieve-section,
+body.numpad-open #sg-section { padding-bottom: var(--numpad-h); }
 #numpad button {
   height: 50px;
   border-radius: 8px;
@@ -840,6 +845,81 @@ body.numpad-open #sieve-section { padding-bottom: var(--numpad-h); }
   padding: 6px 10px;
   font-size: 15px;
   font-weight: 600;
+}
+
+/* ── SG / ABSORPTION FORM ──────────────────────────────────────── */
+.sg-form { padding: 12px 14px 4px; }
+.sg-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 12px;
+}
+.sg-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sg-lab {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: var(--text-sub);
+}
+.sg-input {
+  background: var(--input-bg);
+  color: var(--data-val);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 9px 10px;
+  font-size: 15px;
+  width: 100%;
+  font-family: var(--font-data);
+}
+select.sg-input, input[type="date"].sg-input, input[type="datetime-local"].sg-input {
+  font-family: var(--font-ui);
+}
+.sg-input:focus { border-color: var(--btn-bg); box-shadow: 0 0 0 2px rgba(139,0,0,.12); }
+/* Editable auto-calc fields (Time In Water, Immersed Sample Weight) get a
+   subtle tint so it's clear they're computed but can be overridden. */
+.sg-calc-edit { background: color-mix(in srgb, var(--input-bg) 82%, var(--btn-bg) 8%); }
+.sg-sec-h {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--text-sub);
+  margin: 18px 2px 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.sg-results {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+}
+.sg-res {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+.sg-res span { font-size: 13px; font-weight: 500; color: var(--text-sub); }
+.sg-res b { font-size: 16px; font-family: var(--font-data); color: var(--data-val); }
+#sg-notes {
+  width: 100%;
+  min-height: 44px;
+  background: var(--input-bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  font-size: 14px;
+  resize: none;
+  margin-bottom: 8px;
+}
+@media (min-width: 768px) {
+  .sg-grid, .sg-results { grid-template-columns: 1fr 1fr 1fr 1fr; }
 }
 
 /* ── SETTINGS (always readable: fixed colors, NOT chrome vars) ──── */
@@ -1089,6 +1169,17 @@ body.numpad-open #sieve-section { padding-bottom: var(--numpad-h); }
   </div>
 </div>
 
+<div class="overlay hidden" id="overlay-sg-submit">
+  <div class="dialog">
+    <h2>Submit this SG/Absorption test?</h2>
+    <p>The results will be saved to SharePoint. This tab will then close.</p>
+    <div class="dialog-buttons">
+      <button class="btn-secondary" id="btn-sg-submit-cancel">Cancel</button>
+      <button class="btn-primary" id="btn-sg-submit-confirm">Submit</button>
+    </div>
+  </div>
+</div>
+
 <!-- Confirm Sign Out -->
 <div class="overlay hidden" id="overlay-sign-out">
   <div class="dialog">
@@ -1247,7 +1338,26 @@ const CONFIG = {
     // Who submitted it and when are already covered by SharePoint's built-in
     // Created / Author columns — no need to duplicate those.
     MASTER_LOG: 'Gradation_Master_Log',
-    MASTER_LOG_ID: '7d3467c7-ba98-4f4b-8a55-5846f252809c'
+    MASTER_LOG_ID: '7d3467c7-ba98-4f4b-8a55-5846f252809c',
+    // SG / Absorption test results — one row per completed test.
+    // Create this SharePoint list with these columns (internal names must
+    // match exactly; create them with these names, no spaces):
+    //   Title                     Text     auto-built "Sample — Quarry — Date"
+    //   Quarry                    Choice
+    //   Sample                    Choice: 3/4" / 9/16" + SR / Other
+    //   Technician                Text
+    //   SampleDate                Date only
+    //   TimeInWater               Number (decimals) — hours in water
+    //   Absorption                Number (decimals) — SurfaceDried − Dry
+    //   PercentAbsorption         Number (decimals) — Absorption/Dry ×100
+    //   BulkSpecificGravity       Number (decimals)
+    //   ApparentSpecificGravity   Number (decimals)
+    //   Notes                     Multiple lines of text
+    // Created / Author cover submitted-date and who — no extra columns needed.
+    // After creating the list, look up its GUID (GET /sites/{SITE_ID}/lists)
+    // and paste it into SG_LOG_ID below.
+    SG_LOG: 'SG_Absorption_Log',
+    SG_LOG_ID: '4ba57e86-68bb-45d5-aa4a-c94078c7dbcb'
   }
 };
 
@@ -2558,13 +2668,64 @@ function buildSubmissionRecord(tab) {
   return rec;
 }
 
+// Round helper that preserves null (blank stays blank in SharePoint).
+function rnd(v, d) { return v == null || isNaN(v) ? null : Number(v.toFixed(d)); }
+
+function buildSgRecord(tab) {
+  return {
+    Title: `${tab.sample || 'SG'} — ${tab.quarry} — ${tab.sampleDate}`,
+    Quarry: tab.quarry || null,
+    Sample: tab.sample || null,
+    Technician: tab.technician || null,
+    SampleDate: tab.sampleDate || null,
+    TimeInWater: rnd(sgTime(tab), 2),
+    Absorption: rnd(sgAbsorption(tab), 2),
+    PercentAbsorption: rnd(sgPercentAbsorption(tab), 2),
+    BulkSpecificGravity: rnd(sgBulk(tab), 3),
+    ApparentSpecificGravity: rnd(sgApparent(tab), 3),
+    Notes: tab.notes || null,
+  };
+}
+
+async function doSgSubmit() {
+  const tab = getActiveSgTab();
+  if (!tab) return;
+  showOverlay(null);
+  const record = buildSgRecord(tab);
+  let success = false;
+  if (state.isOnline) {
+    try { await spPost(CONFIG.LISTS.SG_LOG_ID, record); success = true; }
+    catch (e) { console.error('SG submit failed:', e); }
+  }
+  if (!success) {
+    record.queueId = crypto.randomUUID();
+    record._list = 'sg';                 // route to SG list when the queue flushes
+    state.queue.push(record);
+    await dbPut('queue', record);
+    updateQueueBadge();
+    showResult(false, state.isOnline
+      ? 'Upload failed — test saved locally and will sync when back online.'
+      : 'Offline — test saved locally and will upload automatically when back online.');
+  } else {
+    showResult(true, 'SG/Absorption test submitted successfully.');
+  }
+  // Close the tab
+  try { await dbDelete('sgtabs', tab.tabId); } catch (_) {}
+  state.sgTabs = state.sgTabs.filter(t => t.tabId !== tab.tabId);
+  state.activeSgTabId = state.sgTabs[0]?.tabId || null;
+  renderAll();
+}
+
 async function flushQueue() {
   if (!state.isOnline || state.queue.length === 0) return 0;
   let success = 0;
   for (const item of [...state.queue]) {
     try {
-      const { queueId, ...fields } = item; // queueId is local-only bookkeeping, not a real column
-      await spPost(CONFIG.LISTS.MASTER_LOG_ID, fields);
+      // queueId is local-only bookkeeping; _list optionally routes the record
+      // to a non-default list (SG/Absorption). Both are stripped before POST.
+      const { queueId, _list, ...fields } = item;
+      const listId = _list === 'sg' ? CONFIG.LISTS.SG_LOG_ID : CONFIG.LISTS.MASTER_LOG_ID;
+      await spPost(listId, fields);
       state.queue = state.queue.filter(q => q.queueId !== item.queueId);
       await dbDelete('queue', item.queueId);
       success++;
@@ -2926,11 +3087,77 @@ function createSgTab(defaults = {}) {
   return {
     tabId: crypto.randomUUID(),
     tabLabel: defaults.tabLabel || 'SG Test',
-    sgType: defaults.sgType || 'Coarse',   // Coarse | Fine
-    technician: defaults.technician || (state.user?.displayName || ''),
     startedAt: defaults.startedAt || new Date().toISOString(),
-    data: defaults.data || {},             // reserved for later fields
+    // Header
+    quarry: defaults.quarry || '',
+    sample: defaults.sample || '',              // 3/4" | 9/16" + SR | Other
+    technician: defaults.technician || (state.user?.displayName || ''),
+    sampleDate: defaults.sampleDate || todayISO(),
+    // Body — raw measured inputs
+    intoWater: defaults.intoWater || '',        // datetime-local string
+    tested: defaults.tested || '',              // datetime-local string
+    timeInWater: defaults.timeInWater ?? null,  // hours; auto unless timeInWaterManual
+    timeInWaterManual: defaults.timeInWaterManual || false,
+    basketWt: defaults.basketWt ?? null,        // Immersed Basket Weight
+    basketSampleWt: defaults.basketSampleWt ?? null, // Immersed Basket + Sample
+    immersedWt: defaults.immersedWt ?? null,    // Immersed Sample Weight; auto unless manual
+    immersedWtManual: defaults.immersedWtManual || false,
+    surfaceDriedWt: defaults.surfaceDriedWt ?? null,
+    dryWt: defaults.dryWt ?? null,
+    notes: defaults.notes || '',
   };
+}
+
+// ── SG / ABSORPTION CALCULATIONS ──────────────────────────────
+function todayISO() { return new Date().toISOString().split('T')[0]; }
+// Immersed Sample Weight = (Basket + Sample) − Basket
+function sgImmersedAuto(t) {
+  if (t.basketSampleWt == null || t.basketWt == null) return null;
+  return t.basketSampleWt - t.basketWt;
+}
+// Effective immersed weight: manual override if set, else the auto value.
+function sgImmersed(t) {
+  return (t.immersedWtManual && t.immersedWt != null) ? t.immersedWt : sgImmersedAuto(t);
+}
+// Time in water (hours) = Tested − Into Water
+function sgTimeAuto(t) {
+  if (!t.intoWater || !t.tested) return null;
+  const a = new Date(t.intoWater).getTime(), b = new Date(t.tested).getTime();
+  if (isNaN(a) || isNaN(b)) return null;
+  return (b - a) / 3600000;
+}
+function sgTime(t) {
+  return (t.timeInWaterManual && t.timeInWater != null) ? t.timeInWater : sgTimeAuto(t);
+}
+// Absorption = Surface Dried − Dry
+function sgAbsorption(t) {
+  if (t.surfaceDriedWt == null || t.dryWt == null) return null;
+  return t.surfaceDriedWt - t.dryWt;
+}
+// Percent Absorption = Absorption / Dry × 100
+function sgPercentAbsorption(t) {
+  const abs = sgAbsorption(t);
+  if (abs == null || !t.dryWt) return null;
+  return abs / t.dryWt * 100;
+}
+// Bulk SG (OD) = Dry / (Surface Dried − Immersed)
+function sgBulk(t) {
+  const imm = sgImmersed(t);
+  if (t.dryWt == null || t.surfaceDriedWt == null || imm == null) return null;
+  const denom = t.surfaceDriedWt - imm;
+  if (!denom) return null;
+  return t.dryWt / denom;
+}
+// Apparent SG = Dry / (Dry − Immersed)
+// NOTE: the written spec said "Dry / (Dry − Surface Dried)", but Surface Dried
+// ≥ Dry makes that denominator ≤ 0 (negative/invalid SG). Standard ASTM
+// apparent SG uses Immersed, which is what's implemented here. Flagged to user.
+function sgApparent(t) {
+  const imm = sgImmersed(t);
+  if (t.dryWt == null || imm == null) return null;
+  const denom = t.dryWt - imm;
+  if (!denom) return null;
+  return t.dryWt / denom;
 }
 async function saveSgTab(tab) { try { await dbPut('sgtabs', tab); } catch (_) {} }
 
@@ -2964,41 +3191,134 @@ function renderSgSection() {
     return;
   }
   if (!tab) { state.activeSgTabId = state.sgTabs[0].tabId; return renderSgSection(); }
-  el.innerHTML = `<div id="sieve-content" class="screen-pad">
-    <div class="weight-row" style="padding:10px 16px">
-      <span class="weight-label">Type:</span>
-      <select id="sg-type" class="sg-type-select">
-        <option value="Coarse"${tab.sgType==='Coarse'?' selected':''}>Coarse</option>
-        <option value="Fine"${tab.sgType==='Fine'?' selected':''}>Fine</option>
-      </select>
+
+  const quarryOpts = state.quarries.map(q =>
+    `<option value="${esc(q)}"${tab.quarry === q ? ' selected' : ''}>${esc(q)}</option>`).join('');
+  const SAMPLES = ['3/4"', '9/16" + SR', 'Other'];
+  const sampleOpts = SAMPLES.map(s =>
+    `<option value="${esc(s)}"${tab.sample === s ? ' selected' : ''}>${esc(s)}</option>`).join('');
+
+  const imm = sgImmersed(tab), tiw = sgTime(tab);
+  const abs = sgAbsorption(tab), pAbs = sgPercentAbsorption(tab);
+  const bulk = sgBulk(tab), app = sgApparent(tab);
+  const num = (v, d) => v == null || isNaN(v) ? '' : v.toFixed(d);
+
+  el.innerHTML = `<div id="sieve-content" class="sg-form">
+    <div class="sg-grid">
+      <label class="sg-field"><span class="sg-lab">Quarry</span>
+        <select class="sg-input" id="sg-quarry"><option value="">—</option>${quarryOpts}</select></label>
+      <label class="sg-field"><span class="sg-lab">Sample</span>
+        <select class="sg-input" id="sg-sample"><option value="">—</option>${sampleOpts}</select></label>
+      <label class="sg-field"><span class="sg-lab">Technician</span>
+        <input class="sg-input" id="sg-tech" type="text" autocomplete="off" value="${esc(tab.technician)}"></label>
+      <label class="sg-field"><span class="sg-lab">Sample Date</span>
+        <input class="sg-input" id="sg-sampledate" type="date" value="${esc(tab.sampleDate)}"></label>
     </div>
-    <div class="screen-empty" style="margin-top:24px">
-      <p class="screen-empty-title">${tab.sgType} SG/Absorption</p>
-      <p class="screen-empty-sub">Test entry fields coming soon. This tab is saved and won't be cleared.</p>
+
+    <div class="sg-sec-h">Measurements</div>
+    <div class="sg-grid">
+      <label class="sg-field"><span class="sg-lab">Date/Time Into Water</span>
+        <input class="sg-input" id="sg-intowater" type="datetime-local" value="${esc(tab.intoWater)}"></label>
+      <label class="sg-field"><span class="sg-lab">Date/Time Tested</span>
+        <input class="sg-input" id="sg-tested" type="datetime-local" value="${esc(tab.tested)}"></label>
+      <label class="sg-field"><span class="sg-lab">Time In Water (hrs)${tab.timeInWaterManual ? ' •' : ''}</span>
+        <input class="sg-input sg-calc-edit" id="sg-tiw" type="text" inputmode="none" value="${num(tiw, 2)}"></label>
+      <span class="sg-field"></span>
+      <label class="sg-field"><span class="sg-lab">Immersed Basket Weight</span>
+        <input class="sg-input sg-wt" id="sg-basket" type="text" inputmode="none" value="${tab.basketWt ?? ''}"></label>
+      <label class="sg-field"><span class="sg-lab">Immersed Basket + Sample</span>
+        <input class="sg-input sg-wt" id="sg-basketsample" type="text" inputmode="none" value="${tab.basketSampleWt ?? ''}"></label>
+      <label class="sg-field"><span class="sg-lab">Immersed Sample Weight${tab.immersedWtManual ? ' •' : ''}</span>
+        <input class="sg-input sg-calc-edit" id="sg-immersed" type="text" inputmode="none" value="${imm == null ? '' : imm}"></label>
+      <span class="sg-field"></span>
+      <label class="sg-field"><span class="sg-lab">Surface Dried Weight</span>
+        <input class="sg-input sg-wt" id="sg-surfdry" type="text" inputmode="none" value="${tab.surfaceDriedWt ?? ''}"></label>
+      <label class="sg-field"><span class="sg-lab">Dry Weight</span>
+        <input class="sg-input sg-wt" id="sg-dry" type="text" inputmode="none" value="${tab.dryWt ?? ''}"></label>
+    </div>
+
+    <div class="sg-sec-h">Results</div>
+    <div class="sg-results">
+      <div class="sg-res"><span>Absorption</span><b>${num(abs, 1)}</b></div>
+      <div class="sg-res"><span>Percent Absorption</span><b>${pAbs == null ? '' : num(pAbs, 2) + '%'}</b></div>
+      <div class="sg-res"><span>Bulk Specific Gravity</span><b>${num(bulk, 3)}</b></div>
+      <div class="sg-res"><span>Apparent Specific Gravity</span><b>${num(app, 3)}</b></div>
     </div>
   </div>
   <div id="notes-section">
+    <textarea id="sg-notes" placeholder="Notes">${esc(tab.notes)}</textarea>
     <div id="action-row">
-      <span style="flex:1"></span>
+      <button id="sg-submit">Submit</button>
       <button id="btn-sg-delete" title="Delete test">
         <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 6h18"/>
-          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-          <path d="M10 11v6"/>
-          <path d="M14 11v6"/>
+          <path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
         </svg>
       </button>
     </div>
   </div>`;
-  const sel = document.getElementById('sg-type');
-  if (sel) sel.addEventListener('change', async e => {
-    tab.sgType = e.target.value;
-    await saveSgTab(tab);
-    renderSgSection();
+
+  wireSgForm(tab);
+}
+
+// Parse a numeric input's value to a number or null (blank -> null).
+function sgParse(v) {
+  if (v == null) return null;
+  const s = String(v).trim();
+  if (s === '') return null;
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+
+function wireSgForm(tab) {
+  const $ = id => document.getElementById(id);
+  const save = async (rerender) => { await saveSgTab(tab); if (rerender) renderSgSection(); };
+
+  // Header selects/inputs
+  $('sg-quarry').addEventListener('change', e => { tab.quarry = e.target.value; save(false); });
+  $('sg-sample').addEventListener('change', e => {
+    tab.sample = e.target.value;
+    tab.tabLabel = tab.sample || 'SG Test';
+    save(true); renderSgTabs();
   });
-  const del = document.getElementById('btn-sg-delete');
-  if (del) del.addEventListener('click', () => showOverlay('overlay-sg-delete'));
+  $('sg-tech').addEventListener('change', e => { tab.technician = e.target.value; save(false); });
+  $('sg-sampledate').addEventListener('change', e => { tab.sampleDate = e.target.value; save(false); });
+
+  // Datetimes — recompute Time In Water (unless manually overridden)
+  const onDateTime = () => {
+    tab.intoWater = $('sg-intowater').value;
+    tab.tested = $('sg-tested').value;
+    save(true);
+  };
+  $('sg-intowater').addEventListener('change', onDateTime);
+  $('sg-tested').addEventListener('change', onDateTime);
+
+  // Time In Water — editable auto field
+  $('sg-tiw').addEventListener('change', e => {
+    const v = sgParse(e.target.value);
+    if (v == null) { tab.timeInWaterManual = false; tab.timeInWater = null; }
+    else { tab.timeInWaterManual = true; tab.timeInWater = v; }
+    save(true);
+  });
+
+  // Weights that feed Immersed Sample Weight
+  $('sg-basket').addEventListener('change', e => { tab.basketWt = sgParse(e.target.value); save(true); });
+  $('sg-basketsample').addEventListener('change', e => { tab.basketSampleWt = sgParse(e.target.value); save(true); });
+  $('sg-immersed').addEventListener('change', e => {
+    const v = sgParse(e.target.value);
+    if (v == null) { tab.immersedWtManual = false; tab.immersedWt = null; }
+    else { tab.immersedWtManual = true; tab.immersedWt = v; }
+    save(true);
+  });
+
+  // Weights that feed the results
+  $('sg-surfdry').addEventListener('change', e => { tab.surfaceDriedWt = sgParse(e.target.value); save(true); });
+  $('sg-dry').addEventListener('change', e => { tab.dryWt = sgParse(e.target.value); save(true); });
+
+  $('sg-notes').addEventListener('change', e => { tab.notes = e.target.value; save(false); });
+
+  $('btn-sg-delete').addEventListener('click', () => showOverlay('overlay-sg-delete'));
+  $('sg-submit').addEventListener('click', () => showOverlay('overlay-sg-submit'));
 }
 
 // ── REVIEW (placeholder) ──────────────────────────────────────
@@ -3171,7 +3491,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── ON-SCREEN NUMPAD ──────────────────────────────────────
   const numpad = document.getElementById('numpad');
-  const NP_TARGETS = '.sieve-input, .weight-input';
+  const NP_TARGETS = '.sieve-input, .weight-input, .sg-wt, .sg-calc-edit';
   let npInput = null;
   // Inputs edited via the numpad. Programmatic .value changes never fire a
   // native 'change' on blur, and saving lives in the 'change' handlers — so
@@ -3325,6 +3645,10 @@ document.addEventListener('DOMContentLoaded', () => {
     state.activeSgTabId = state.sgTabs[0]?.tabId || null;
     renderAll();
   });
+
+  // SG/Absorption submit
+  document.getElementById('btn-sg-submit-cancel').addEventListener('click', () => showOverlay(null));
+  document.getElementById('btn-sg-submit-confirm').addEventListener('click', doSgSubmit);
 
   // Change product confirm
   document.getElementById('btn-change-cancel').addEventListener('click', () => {
