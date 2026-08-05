@@ -352,6 +352,10 @@ body.screen-settings #settings-section { display: flex; }
 }
 .sieve-input:focus { border-color: var(--red); box-shadow: 0 0 0 2px rgba(139,0,0,.1); background: var(--white); }
 .sieve-input.auto-calc { background: #F0EFED; color: var(--steel); }
+/* Dark mode: calculated (auto) individual fields read as a near-black fill
+   with light-gray numbers, matching the rest of the dark body. */
+body.dark .sieve-input.auto-calc { background: #14161A; color: #B8BCC4; }
+body.dark .sieve-input:disabled { background: #14161A; color: #6B7280; }
 .sieve-input.negative { color: var(--fail-red); }
 .sieve-input:disabled { background: #EBEBEA; color: var(--steel-lt); cursor: not-allowed; }
 /* Hide Safari/WebKit's autofill decoration icons (contact/credentials/
@@ -432,7 +436,7 @@ input[type=number] { -moz-appearance: textfield; }
 #btn-submit:disabled { background: var(--steel-lt); cursor: not-allowed; }
 /* Trash is the inverse of the other buttons: button-text as its fill,
    button-color as the icon. */
-#btn-delete {
+#btn-delete, #btn-sg-delete {
   width: 42px;
   height: 42px;
   background: var(--btn-text);
@@ -444,16 +448,17 @@ input[type=number] { -moz-appearance: textfield; }
   color: var(--btn-bg);
   box-shadow: var(--shadow);
 }
-#btn-delete svg { stroke: var(--btn-bg); }
+#btn-delete svg, #btn-sg-delete svg { stroke: var(--btn-bg); }
 
 /* ── TAB BAR ────────────────────────────────────────────────── */
-/* Flush to the very bottom of the screen. The safe-area inset is kept so
-   content clears any home indicator, but on the iPad Air 5 that inset is 0,
-   so the bar sits at the true bottom edge with no white buffer. */
+/* Sits flush at the bottom of the visible area. Height is exactly --tabbar-h
+   with NO safe-area padding: the body height (--vhpx) is driven from
+   visualViewport.height, which already excludes the home-indicator zone, so
+   adding env(safe-area-inset-bottom) here would double-count it and leave a
+   colored strip below the tabs. */
 #tabbar {
   background: var(--tab2-bg);
-  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
-  padding-bottom: env(safe-area-inset-bottom);
+  height: var(--tabbar-h);
   display: flex;
   align-items: stretch;
   flex-shrink: 0;
@@ -796,7 +801,7 @@ body.numpad-open #sieve-section { padding-bottom: var(--numpad-h); }
   height: 50px;
   border-radius: 8px;
   background: #3A3E46;
-  color: var(--white);
+  color: #FFFFFF;
   font-size: 20px;
   font-weight: 600;
   font-family: var(--font-data);
@@ -1069,6 +1074,17 @@ body.numpad-open #sieve-section { padding-bottom: var(--numpad-h); }
     <div class="dialog-buttons">
       <button class="btn-secondary" id="btn-delete-cancel">Cancel</button>
       <button class="btn-danger" id="btn-delete-confirm">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="overlay-sg-delete">
+  <div class="dialog">
+    <h2>Delete this SG/Absorption test?</h2>
+    <p>This cannot be undone. All entered data for this tab will be lost.</p>
+    <div class="dialog-buttons">
+      <button class="btn-secondary" id="btn-sg-delete-cancel">Cancel</button>
+      <button class="btn-danger" id="btn-sg-delete-confirm">Delete</button>
     </div>
   </div>
 </div>
@@ -1797,6 +1813,13 @@ function sectionDecimals(sieveData, type) {
 function fmtToSection(val, sieveData, type) {
   return val.toFixed(sectionDecimals(sieveData, type));
 }
+// Max decimals across an arbitrary set of entered numbers (for computed values
+// derived from weight inputs rather than sieve rows, e.g. loss by wash).
+function maxDecimals(...nums) {
+  let max = 0;
+  nums.forEach(n => { const d = decimalsOf(n); if (d > max) max = d; });
+  return max;
+}
 function calcLossByWash(tab) {
   if (!tab.dryWeight || !tab.washedDryWeight) return 0;
   return tab.dryWeight - tab.washedDryWeight;
@@ -2133,7 +2156,7 @@ function renderSieveSection() {
       const lbw = calcLossByWash(tab);
       html += `<div class="weight-row" style="padding-left:22px;padding-right:22px;margin-top:2px">
         <span class="weight-label">Loss by Wash:</span>
-        <span style="font-family:var(--font-data);font-size:13px;color:var(--data-val)">${lbw.toFixed(2)}</span>
+        <span style="font-family:var(--font-data);font-size:13px;color:var(--data-val)">${lbw.toFixed(maxDecimals(tab.dryWeight, tab.washedDryWeight))}</span>
       </div>`;
     }
     {
@@ -2941,7 +2964,7 @@ function renderSgSection() {
     return;
   }
   if (!tab) { state.activeSgTabId = state.sgTabs[0].tabId; return renderSgSection(); }
-  el.innerHTML = `<div class="screen-pad">
+  el.innerHTML = `<div id="sieve-content" class="screen-pad">
     <div class="weight-row" style="padding:10px 16px">
       <span class="weight-label">Type:</span>
       <select id="sg-type" class="sg-type-select">
@@ -2953,6 +2976,20 @@ function renderSgSection() {
       <p class="screen-empty-title">${tab.sgType} SG/Absorption</p>
       <p class="screen-empty-sub">Test entry fields coming soon. This tab is saved and won't be cleared.</p>
     </div>
+  </div>
+  <div id="notes-section">
+    <div id="action-row">
+      <span style="flex:1"></span>
+      <button id="btn-sg-delete" title="Delete test">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 6h18"/>
+          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+          <path d="M10 11v6"/>
+          <path d="M14 11v6"/>
+        </svg>
+      </button>
+    </div>
   </div>`;
   const sel = document.getElementById('sg-type');
   if (sel) sel.addEventListener('change', async e => {
@@ -2960,6 +2997,8 @@ function renderSgSection() {
     await saveSgTab(tab);
     renderSgSection();
   });
+  const del = document.getElementById('btn-sg-delete');
+  if (del) del.addEventListener('click', () => showOverlay('overlay-sg-delete'));
 }
 
 // ── REVIEW (placeholder) ──────────────────────────────────────
@@ -3107,9 +3146,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── RUBBER-BAND LOCK ──────────────────────────────────────
   // iPadOS 15 ignores overscroll-behavior (Safari 16+ only), so block
   // touch-scrolling everywhere except the intentional scroll containers.
-  const SCROLLABLES = '#sieve-section, #queue-list, #tabbar, .picker-list, select, textarea';
+  // IMPORTANT: interactive controls (buttons, inputs, selects, header tabs,
+  // dialogs) are excluded. The Apple Pencil emits a tiny touchmove even on a
+  // tap; calling preventDefault on that over a control cancels the synthesized
+  // click, which is why the Pencil couldn't tap the header fields, tabs, gear,
+  // or dialog buttons. Only genuine scroll gestures on non-interactive, non-
+  // scrollable areas are blocked now.
+  const SCROLLABLES = '#sieve-section, #sg-section, #queue-body, #queue-list, #review-section, #settings-section, #tabbar, #header-tabs, .picker-list, .dialog';
+  const INTERACTIVE = 'button, a, input, select, textarea, label, .htab, .tab-btn, .set-row, .overlay, [role="button"]';
   document.addEventListener('touchmove', (e) => {
-    if (!e.target.closest?.(SCROLLABLES)) e.preventDefault();
+    const t = e.target;
+    if (t.closest?.(SCROLLABLES)) return;   // allow scroll inside scroll areas
+    if (t.closest?.(INTERACTIVE)) return;   // never swallow taps on controls
+    e.preventDefault();
   }, { passive: false });
   // Classic iOS trick: nudge off the exact scroll extremes so a drag inside
   // the scroll container scrolls it instead of chaining to the page.
@@ -3182,6 +3231,17 @@ document.addEventListener('DOMContentLoaded', () => {
     npInput.dispatchEvent(new Event('input', { bubbles: true }));
   });
 
+  // Tap anywhere outside the numpad and outside a data-entry input to dismiss
+  // the pad — blurring the active field triggers the focusout close path above.
+  // Uses pointerdown for an immediate feel; no preventDefault so the tapped
+  // control still receives its normal event.
+  document.addEventListener('pointerdown', (e) => {
+    if (!document.body.classList.contains('numpad-open')) return;
+    if (e.target.closest?.('#numpad')) return;        // pad button — handled elsewhere
+    if (e.target.closest?.(NP_TARGETS)) return;        // another data field — keep open
+    if (npInput && document.contains(npInput)) npInput.blur();
+  }, true);   // capture phase, so it runs before the tapped element's own handlers
+
   // New tab (context depends on the active screen)
   document.getElementById('btn-new-tab').addEventListener('click', async () => {
     if (state.activeScreen === 'sg') {
@@ -3251,6 +3311,18 @@ document.addEventListener('DOMContentLoaded', () => {
     state.tabs = state.tabs.filter(t => t.tabId !== tab.tabId);
     if (state.tabs.length === 0) await addNewTab();
     else state.activeTabId = state.tabs[0].tabId;
+    renderAll();
+  });
+
+  // SG/Absorption delete
+  document.getElementById('btn-sg-delete-cancel').addEventListener('click', () => showOverlay(null));
+  document.getElementById('btn-sg-delete-confirm').addEventListener('click', async () => {
+    const tab = getActiveSgTab();
+    if (!tab) { showOverlay(null); return; }
+    showOverlay(null);
+    try { await dbDelete('sgtabs', tab.tabId); } catch (_) {}
+    state.sgTabs = state.sgTabs.filter(t => t.tabId !== tab.tabId);
+    state.activeSgTabId = state.sgTabs[0]?.tabId || null;
     renderAll();
   });
 
