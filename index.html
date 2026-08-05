@@ -39,6 +39,41 @@
   --font-data:  'IBM Plex Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', monospace;
   --radius:     6px;
   --shadow:     0 1px 3px rgba(0,0,0,.1), 0 1px 2px rgba(0,0,0,.06);
+
+  /* ── THEMEABLE CHROME (set by Settings; NOT affected by dark mode) ──
+     Defaults reproduce the original red look. applyTheme() overrides these
+     on :root at runtime from saved prefs. Kept separate from the body
+     tokens above so light/dark only ever touches the app body. */
+  --hdr-bg:     #8B0000;  /* header section + active header tab */
+  --hdr-text:   #FFFFFF;  /* text on the above */
+  --hdr2-bg:    #6B0000;  /* inactive header tabs */
+  --hdr2-text:  rgba(255,255,255,.62);
+  --tab-bg:     #A50000;  /* active bottom tab */
+  --tab-text:   #FFFFFF;
+  --tab2-bg:    #6B0000;  /* bottom bar + inactive bottom tabs */
+  --tab2-text:  rgba(255,255,255,.62);
+  --btn-bg:     #8B0000;  /* submit / OK / confirm / trash icon */
+  --btn-text:   #FFFFFF;  /* their text; trash button is the inverse */
+}
+
+/* ── DARK MODE ──────────────────────────────────────────────────
+   Overrides ONLY the body-region tokens, so the whole gradation/SG body,
+   cards, fields and text flip to dark while the themeable chrome above is
+   untouched. Because these are the same variable names the body CSS already
+   references, every usage flips automatically with no per-rule edits. */
+body.dark {
+  --stone:      #15171A;  /* app / scroll background */
+  --white:      #1E2126;  /* cards, inputs, dialogs */
+  --input-bg:   #262A30;  /* field fills */
+  --data-val:   #E8E6E2;  /* sieve/weight values */
+  --text:       #E8E6E2;
+  --text-sub:   #B8BCC4;
+  --border:     #363B43;
+  --steel:      #9AA1AC;
+  --steel-lt:   #6B7280;
+  --pass-green: #4ADE80;
+  --fail-red:   #F87171;
+  --shadow:     0 1px 3px rgba(0,0,0,.4), 0 1px 2px rgba(0,0,0,.3);
 }
 
 /* ── RESET ──────────────────────────────────────────────────── */
@@ -69,12 +104,56 @@ button { cursor: pointer; }
 
 /* ── HEADER ─────────────────────────────────────────────────── */
 #header {
-  background: var(--red);
-  color: var(--white);
+  background: var(--hdr-bg);
+  color: var(--hdr-text);
   flex-shrink: 0;
   padding: max(10px, env(safe-area-inset-top)) 14px 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,.25);
   z-index: 10;
+}
+
+/* ── HEADER TAB STRIP ──────────────────────────────────────────── */
+#header-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  margin: 0 -14px 8px;   /* bleed to the header edges */
+  padding: 0 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+#header-tabs::-webkit-scrollbar { display: none; }
+.htab {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: var(--hdr2-bg);
+  color: var(--hdr2-text);
+  transition: background .12s, color .12s;
+}
+.htab.active { background: var(--hdr-bg); color: var(--hdr-text); }
+.htab.gear { padding: 8px 12px; margin-left: auto; }
+.htab svg { width: 16px; height: 16px; display: block; }
+.htab-count {
+  min-width: 18px;
+  padding: 0 5px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--hdr-text);
+  color: var(--hdr-bg);
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 #header-top {
   display: flex;
@@ -82,11 +161,8 @@ button { cursor: pointer; }
   align-items: center;
   margin-bottom: 8px;
 }
-#app-title {
-  font-size: clamp(13px, 2.5vw, 18px);
-  font-weight: 700;
-  letter-spacing: -.3px;
-}
+/* The 6 gradation fields only show on the Gradations screen. */
+body:not(.screen-gradations) #header-fields { display: none; }
 #header-fields {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -110,7 +186,7 @@ button { cursor: pointer; }
   flex-shrink: 0;
 }
 .header-input {
-  color: var(--white);
+  color: var(--hdr-text);
   font-size: clamp(13px, 2vw, 15px);
   font-weight: 500;
   flex: 1;
@@ -126,21 +202,6 @@ select.header-input { cursor: pointer; }
 /* Narrow screens: natural 2-col flow → quarry+product / type+tech / date+time.
    Desktop 3-col placements live in the ≥768px media query. */
 
-/* ── QUEUE BADGE ────────────────────────────────────────────── */
-#queue-badge {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 20px;
-  background: rgba(255,255,255,.2);
-  color: var(--white);
-  cursor: pointer;
-  border: 1px solid rgba(255,255,255,.3);
-  transition: background .15s;
-}
-#queue-badge:hover { background: rgba(255,255,255,.3); }
-#queue-badge.has-items { background: #FF6B6B; border-color: #FF4444; }
-
 /* ── SIEVE SECTION ──────────────────────────────────────────── */
 #sieve-section {
   flex: 1;
@@ -152,6 +213,27 @@ select.header-input { cursor: pointer; }
   display: flex;
   flex-direction: column;
 }
+
+/* ── SCREEN SWITCHING ───────────────────────────────────────────
+   All screen bodies are siblings; only the active one is shown, driven by a
+   body.screen-<name> class. Each fills the space between header and tab bar
+   and scrolls independently. Switching screens only toggles visibility — no
+   screen's DOM or state is destroyed, so in-progress tests are never lost. */
+.screen-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  display: none;
+  flex-direction: column;
+}
+body:not(.screen-gradations) #sieve-section { display: none; }
+body.screen-gradations #sieve-section { display: flex; }
+body.screen-sg       #sg-section,
+body.screen-queue    #queue-body,
+body.screen-review   #review-section,
+body.screen-settings #settings-section { display: flex; }
 /* Wraps everything except the notes/actions bar. flex-grow lets it absorb
    any leftover vertical space so notes/actions sit pinned to the bottom of
    the visible area on short tabs, while still scrolling normally with the
@@ -337,34 +419,39 @@ input[type=number] { -moz-appearance: textfield; }
 }
 #btn-submit {
   flex: 1;
-  background: var(--red);
-  color: var(--white);
+  background: var(--btn-bg);
+  color: var(--btn-text);
   font-size: 15px;
   font-weight: 600;
   padding: 10px;
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  transition: background .15s;
+  transition: filter .15s;
 }
-#btn-submit:hover { background: var(--red-light); }
+#btn-submit:hover { filter: brightness(1.12); }
 #btn-submit:disabled { background: var(--steel-lt); cursor: not-allowed; }
+/* Trash is the inverse of the other buttons: button-text as its fill,
+   button-color as the icon. */
 #btn-delete {
   width: 42px;
   height: 42px;
-  background: var(--white);
+  background: var(--btn-text);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--fail-red);
+  color: var(--btn-bg);
   box-shadow: var(--shadow);
 }
-#btn-delete:hover { background: #FEF2F2; }
+#btn-delete svg { stroke: var(--btn-bg); }
 
 /* ── TAB BAR ────────────────────────────────────────────────── */
+/* Flush to the very bottom of the screen. The safe-area inset is kept so
+   content clears any home indicator, but on the iPad Air 5 that inset is 0,
+   so the bar sits at the true bottom edge with no white buffer. */
 #tabbar {
-  background: var(--red);
+  background: var(--tab2-bg);
   height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
   padding-bottom: env(safe-area-inset-bottom);
   display: flex;
@@ -375,13 +462,18 @@ input[type=number] { -moz-appearance: textfield; }
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
+/* Screens without their own bottom tabs hide the bar entirely. */
+body.screen-queue #tabbar,
+body.screen-review #tabbar,
+body.screen-settings #tabbar { display: none; }
 #tabbar::-webkit-scrollbar { display: none; }
 .tab-btn {
   flex-shrink: 0;
   padding: 0 14px;
   font-size: 13px;
   font-weight: 600;
-  color: rgba(255,255,255,.6);
+  background: var(--tab2-bg);
+  color: var(--tab2-text);
   white-space: nowrap;
   border-right: 1px solid rgba(255,255,255,.1);
   transition: color .15s, background .15s;
@@ -390,20 +482,19 @@ input[type=number] { -moz-appearance: textfield; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.tab-btn.active { color: var(--white); background: rgba(255,255,255,.15); }
-.tab-btn:hover:not(.active) { color: rgba(255,255,255,.85); }
+.tab-btn.active { color: var(--tab-text); background: var(--tab-bg); }
 #btn-new-tab {
   flex-shrink: 0;
   width: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255,255,255,.7);
+  background: var(--tab2-bg);
+  color: var(--tab2-text);
   font-size: 20px;
   font-weight: 300;
   margin-left: auto;
 }
-#btn-new-tab:hover { color: var(--white); }
 
 /* ── POPUPS ─────────────────────────────────────────────────── */
 .overlay {
@@ -443,8 +534,8 @@ input[type=number] { -moz-appearance: textfield; }
 }
 .btn-primary {
   flex: 1;
-  background: var(--red);
-  color: var(--white);
+  background: var(--btn-bg);
+  color: var(--btn-text);
   font-size: 14px;
   font-weight: 600;
   padding: 10px;
@@ -554,50 +645,7 @@ input[type=number] { -moz-appearance: textfield; }
 }
 .custom-name-input:focus { border-color: var(--red); box-shadow: 0 0 0 2px rgba(139,0,0,.1); }
 
-/* ── QUEUE SCREEN ───────────────────────────────────────────── */
-#queue-screen {
-  position: fixed;
-  inset: 0;
-  background: var(--stone);
-  z-index: 90;
-  display: flex;
-  flex-direction: column;
-}
-#queue-screen.hidden { display: none; }
-#queue-header {
-  background: var(--red);
-  color: var(--white);
-  padding: 14px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
-}
-#queue-header h1 { font-size: 16px; font-weight: 700; flex: 1; }
-#btn-queue-back, #btn-queue-submit-all {
-  font-size: 13px;
-  font-weight: 600;
-  padding: 6px 12px;
-  border-radius: var(--radius);
-  background: rgba(255,255,255,.2);
-  color: var(--white);
-}
-#queue-list { flex: 1; overflow-y: auto; padding: 12px; }
-#queue-footer {
-  flex-shrink: 0;
-  padding: 12px 14px max(12px, env(safe-area-inset-bottom));
-  border-top: 1px solid var(--border);
-}
-#btn-sign-out {
-  width: 100%;
-  padding: 10px;
-  border-radius: var(--radius);
-  background: var(--white);
-  border: 1px solid var(--border);
-  color: var(--fail-red);
-  font-size: 14px;
-  font-weight: 600;
-}
+/* ── QUEUE ITEMS (list cards rendered on the Queue screen) ──────── */
 .queue-item {
   background: var(--white);
   border-radius: var(--radius);
@@ -765,6 +813,110 @@ body.numpad-open #sieve-section { padding-bottom: var(--numpad-h); }
 #sieve-section::-webkit-scrollbar-track { background: transparent; }
 #sieve-section::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
+/* ── SCREEN BODIES: shared padding + empty states ──────────────── */
+.screen-pad { padding: 8px 0; }
+.screen-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 28px;
+  gap: 8px;
+}
+.screen-empty-title { font-size: 17px; font-weight: 700; color: var(--text); }
+.screen-empty-sub { font-size: 14px; color: var(--text-sub); line-height: 1.5; max-width: 340px; }
+.sg-type-select {
+  background: var(--input-bg);
+  color: var(--data-val);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* ── SETTINGS (always readable: fixed colors, NOT chrome vars) ──── */
+#settings-section { background: var(--stone); }
+.settings-wrap { padding: 16px 16px calc(24px + env(safe-area-inset-bottom)); max-width: 640px; width: 100%; margin: 0 auto; }
+.set-h {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--text-sub);
+  margin: 18px 2px 8px;
+}
+.set-h:first-child { margin-top: 4px; }
+.set-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 6px;
+}
+.set-label { font-size: 14px; font-weight: 500; color: var(--text); }
+.set-controls { display: flex; align-items: center; gap: 8px; }
+.set-color {
+  width: 34px; height: 34px; padding: 0;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: none; cursor: pointer; -webkit-appearance: none; appearance: none;
+}
+.set-color::-webkit-color-swatch-wrapper { padding: 2px; }
+.set-color::-webkit-color-swatch { border: none; border-radius: 4px; }
+.set-text {
+  width: 96px;
+  font-family: var(--font-data);
+  font-size: 13px;
+  color: var(--data-val);
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 8px;
+  text-align: center;
+}
+.set-mode {
+  font-size: 13px; font-weight: 600;
+  padding: 7px 16px; border-radius: var(--radius);
+  background: var(--input-bg); color: var(--text-sub);
+  border: 1px solid var(--border);
+}
+.set-mode.on { background: var(--steel); color: #fff; border-color: var(--steel); }
+.set-actions { margin: 10px 2px 4px; }
+.set-reset {
+  font-size: 13px; font-weight: 600;
+  color: var(--fail-red);
+  padding: 8px 4px;
+  text-decoration: underline;
+}
+.set-signout {
+  font-size: 13px; font-weight: 600;
+  background: var(--fail-red); color: #fff;
+  padding: 8px 16px; border-radius: var(--radius);
+}
+
+/* ── QUEUE screen body ─────────────────────────────────────────── */
+#queue-body { background: var(--stone); }
+#queue-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; gap: 12px;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; background: var(--stone); z-index: 1;
+}
+#queue-header h1 { font-size: 16px; font-weight: 700; color: var(--text); }
+#btn-queue-submit-all {
+  background: var(--btn-bg); color: var(--btn-text);
+  font-size: 13px; font-weight: 600;
+  padding: 8px 14px; border-radius: var(--radius);
+}
+#queue-list { padding: 12px 14px calc(16px + env(safe-area-inset-bottom)); }
+#queue-empty { text-align: center; color: var(--text-sub); padding: 48px 0; }
+
 /* ── RESPONSIVE ─────────────────────────────────────────────── */
 @media (min-width: 768px) {
   #header-fields { grid-template-columns: 1fr 1fr 1fr; }
@@ -803,9 +955,17 @@ body.numpad-open #sieve-section { padding-bottom: var(--numpad-h); }
 
   <!-- HEADER -->
   <div id="header">
-    <div id="header-top">
-      <div id="app-title">Gradation Master 5000</div>
-      <button id="queue-badge">Queue Empty</button>
+    <div id="header-tabs">
+      <button class="htab active" data-screen="gradations">Gradations</button>
+      <button class="htab" data-screen="sg">SG/Absorption</button>
+      <button class="htab" data-screen="queue">Queue <span class="htab-count" id="queue-tab-count" style="display:none">0</span></button>
+      <button class="htab" data-screen="review">Review</button>
+      <button class="htab gear" data-screen="settings" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
     </div>
     <div id="header-fields">
       <div class="header-row" id="quarry-row">
@@ -844,12 +1004,32 @@ body.numpad-open #sieve-section { padding-bottom: var(--numpad-h); }
     </div>
   </div>
 
-  <!-- SIEVE SECTION -->
+  <!-- SIEVE SECTION (Gradations screen body) -->
   <div id="sieve-section">
     <!-- Rendered by JS -->
   </div>
 
-  <!-- TAB BAR -->
+  <!-- SG/ABSORPTION screen body -->
+  <div id="sg-section" class="screen-body">
+    <!-- Rendered by JS -->
+  </div>
+
+  <!-- QUEUE screen body -->
+  <div id="queue-body" class="screen-body">
+    <!-- Rendered by JS -->
+  </div>
+
+  <!-- REVIEW screen body -->
+  <div id="review-section" class="screen-body">
+    <!-- Rendered by JS -->
+  </div>
+
+  <!-- SETTINGS screen body -->
+  <div id="settings-section" class="screen-body">
+    <!-- Rendered by JS -->
+  </div>
+
+  <!-- TAB BAR (bottom) — product tabs on Gradations, SG tabs on SG -->
   <div id="tabbar">
     <button id="btn-new-tab" title="New Tab">+</button>
   </div>
@@ -959,24 +1139,6 @@ body.numpad-open #sieve-section { padding-bottom: var(--numpad-h); }
     <div class="dialog-buttons">
       <button class="btn-primary" id="btn-result-ok">OK</button>
     </div>
-  </div>
-</div>
-
-<!-- Queue Screen -->
-<div id="queue-screen" class="hidden">
-  <div id="queue-header">
-    <button id="btn-queue-back">← Back</button>
-    <h1>Pending Queue</h1>
-    <button id="btn-queue-submit-all">Submit All</button>
-  </div>
-  <div id="queue-list">
-    <div id="queue-empty">
-      <p style="font-size:32px">📭</p>
-      <p>No queued gradations</p>
-    </div>
-  </div>
-  <div id="queue-footer">
-    <button id="btn-sign-out">Sign Out</button>
   </div>
 </div>
 
@@ -1195,8 +1357,11 @@ const SIEVE_COLUMNS = SIEVE_DEFS.map(s => ({ key: s.key, label: s.label, type: s
 
 // ── STATE ─────────────────────────────────────────────────────
 let state = {
+  activeScreen: 'gradations',   // gradations | sg | queue | review | settings
   tabs: [],
   activeTabId: null,
+  sgTabs: [],                   // SG/Absorption in-progress tests (shell for now)
+  activeSgTabId: null,
   productRows: [],  // raw flat rows from the consolidated Gradation_Products list
   quarries: [],     // derived from productRows
   products: [],     // derived from productRows
@@ -1207,13 +1372,86 @@ let state = {
   pendingProductChange: null,
   customSection: 'Coarse',
   customFineMode: 'Washed',
+  // Retained across product switches within a tab session: sieve values the
+  // technician has typed, keyed by "Type|Label" (e.g. "Coarse|1 inch"), stored
+  // per tab so switching product re-fills any sieve the new product also uses.
+  // Never submitted — only the current product's sieveData is sent.
 };
+
+// ── THEME / SETTINGS ──────────────────────────────────────────────
+// Chrome colors are user-configurable; the body only responds to dark mode.
+// Each entry: [label, CSS custom property]. Order here is the order shown in
+// the Settings screen.
+const THEME_FIELDS = [
+  ['Header color',              '--hdr-bg'],
+  ['Header text color',         '--hdr-text'],
+  ['Secondary header color',    '--hdr2-bg'],
+  ['Secondary header text',     '--hdr2-text'],
+  ['Tab bar color',             '--tab-bg'],
+  ['Tab bar text color',        '--tab-text'],
+  ['Secondary tab bar color',   '--tab2-bg'],
+  ['Secondary tab bar text',    '--tab2-text'],
+  ['Button color',              '--btn-bg'],
+  ['Button text color',         '--btn-text'],
+];
+const THEME_DEFAULTS = {
+  '--hdr-bg': '#8B0000', '--hdr-text': '#FFFFFF',
+  '--hdr2-bg': '#6B0000', '--hdr2-text': '#B38F8F',
+  '--tab-bg': '#A50000', '--tab-text': '#FFFFFF',
+  '--tab2-bg': '#6B0000', '--tab2-text': '#B38F8F',
+  '--btn-bg': '#8B0000', '--btn-text': '#FFFFFF',
+  mode: 'light',
+};
+let themeState = { ...THEME_DEFAULTS };
+
+// Apply saved theme to the document. Called as early as possible (before the
+// DB opens) using a localStorage mirror, then again after prefs load.
+function applyTheme(t) {
+  const root = document.documentElement;
+  THEME_FIELDS.forEach(([, prop]) => {
+    root.style.setProperty(prop, t[prop] || THEME_DEFAULTS[prop]);
+  });
+  document.body.classList.toggle('dark', t.mode === 'dark');
+  // Keep the iOS status-bar/theme color in sync with the header.
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', t['--hdr-bg'] || THEME_DEFAULTS['--hdr-bg']);
+}
+
+// Early paint from localStorage mirror so there's no red flash before prefs
+// load from IndexedDB. Safe even if empty (falls back to defaults).
+(function earlyTheme() {
+  try {
+    const raw = localStorage.getItem('gm_theme');
+    if (raw) { themeState = { ...THEME_DEFAULTS, ...JSON.parse(raw) }; }
+  } catch (_) {}
+  // body may not exist yet if script is in <head>; guard.
+  if (document.body) applyTheme(themeState);
+  else document.addEventListener('DOMContentLoaded', () => applyTheme(themeState), { once: true });
+})();
+
+async function loadTheme() {
+  try {
+    const rec = await dbGet('prefs', 'theme');
+    if (rec && rec.value) themeState = { ...THEME_DEFAULTS, ...rec.value };
+  } catch (_) {}
+  applyTheme(themeState);
+}
+async function saveTheme() {
+  applyTheme(themeState);
+  try { localStorage.setItem('gm_theme', JSON.stringify(themeState)); } catch (_) {}
+  try { await dbPut('prefs', { key: 'theme', value: themeState }); } catch (_) {}
+}
+function resetTheme() {
+  themeState = { ...THEME_DEFAULTS };
+  saveTheme();
+  renderSettings();
+}
 
 // ── INDEXEDDB ─────────────────────────────────────────────────
 let db;
 function openDB() {
   return new Promise((res, rej) => {
-    const req = indexedDB.open('GradationMaster', 2);
+    const req = indexedDB.open('GradationMaster', 3);
     req.onupgradeneeded = e => {
       const d = e.target.result;
       if (!d.objectStoreNames.contains('tabs'))
@@ -1224,6 +1462,10 @@ function openDB() {
         d.createObjectStore('cache', { keyPath: 'key' });
       if (!d.objectStoreNames.contains('prefs'))
         d.createObjectStore('prefs', { keyPath: 'key' });
+      // SG/Absorption in-progress tests — persisted so a 24-hour test
+      // survives the app being closed and reopened.
+      if (!d.objectStoreNames.contains('sgtabs'))
+        d.createObjectStore('sgtabs', { keyPath: 'tabId' });
     };
     req.onsuccess = e => { db = e.target.result; res(db); };
     req.onerror = () => rej(req.error);
@@ -1491,6 +1733,7 @@ function createTab(defaults = {}) {
     sampleTime: defaults.sampleTime || new Date().toTimeString().slice(0,5),
     notes: defaults.notes || '',
     sieveData: [],
+    retainedValues: defaults.retainedValues || {},  // entered values kept across product switches
     initialWeight: null,
     fineInitialWeight: null,
     dryWeight: null,
@@ -1527,6 +1770,32 @@ function calcTotalWeight(sieveData, type) {
   return sieveData
     .filter(r => r.sieveType === type && r.isTouched && r.individual !== null && !isNaN(r.individual))
     .reduce((s, r) => s + r.individual, 0);
+}
+
+// Decimal places in a single number as displayed (125 -> 0, 125.5 -> 1,
+// 125.25 -> 2). Used so computed totals mirror the precision the technician
+// actually entered in that section instead of a fixed .toFixed(1).
+function decimalsOf(n) {
+  if (n === null || n === undefined || isNaN(n)) return 0;
+  const s = String(n);
+  const dot = s.indexOf('.');
+  return dot < 0 ? 0 : (s.length - dot - 1);
+}
+// Max decimals across the entered individual weights in a section. This drives
+// how many places the section's total (and similar computed values) shows.
+function sectionDecimals(sieveData, type) {
+  let max = 0;
+  sieveData.forEach(r => {
+    if (r.sieveType === type && r.isTouched && r.individual !== null && !isNaN(r.individual)) {
+      const d = decimalsOf(r.individual);
+      if (d > max) max = d;
+    }
+  });
+  return max;
+}
+// Format a computed value to the section's entered precision.
+function fmtToSection(val, sieveData, type) {
+  return val.toFixed(sectionDecimals(sieveData, type));
 }
 function calcLossByWash(tab) {
   if (!tab.dryWeight || !tab.washedDryWeight) return 0;
@@ -1701,8 +1970,8 @@ function updateSieveDisplays(tab) {
   const coarseTotal = calcTotalWeight(tab.sieveData, 'Coarse');
   const fineTotal = calcTotalFineWeight(tab);
   document.querySelectorAll('.total-value').forEach(el => {
-    if (el.dataset.type === 'Coarse') el.textContent = coarseTotal > 0 ? coarseTotal.toFixed(1) : '';
-    if (el.dataset.type === 'Fine') el.textContent = fineTotal > 0 ? fineTotal.toFixed(1) : '';
+    if (el.dataset.type === 'Coarse') el.textContent = coarseTotal > 0 ? fmtToSection(coarseTotal, tab.sieveData, 'Coarse') : '';
+    if (el.dataset.type === 'Fine') el.textContent = fineTotal > 0 ? fmtToSection(fineTotal, tab.sieveData, 'Fine') : '';
   });
 }
 
@@ -1828,7 +2097,7 @@ function renderSieveSection() {
     html += renderSieveTable(tab, coarseRows, 'Coarse', totalCoarse);
     html += `<div class="weight-row" style="padding-left:22px;padding-right:22px;margin-top:2px">
       <span class="weight-label">Total Coarse Weight:</span>
-      <span class="total-value" data-type="Coarse" style="font-family:var(--font-data);font-size:13px;color:var(--data-val)">${totalCoarse > 0 ? totalCoarse.toFixed(1) : ''}</span>
+      <span class="total-value" data-type="Coarse" style="font-family:var(--font-data);font-size:13px;color:var(--data-val)">${totalCoarse > 0 ? fmtToSection(totalCoarse, tab.sieveData, 'Coarse') : ''}</span>
     </div>`;
   }
 
@@ -1876,7 +2145,7 @@ function renderSieveSection() {
         : '';
       html += `<div class="weight-row" style="padding-left:22px;padding-right:22px;margin-top:2px">
         <span class="weight-label">Total Fine Weight:</span>
-        <span class="total-value" data-type="Fine" style="font-family:var(--font-data);font-size:13px;color:var(--data-val)">${totalFine > 0 ? totalFine.toFixed(1) : ''}</span>${lossStr}
+        <span class="total-value" data-type="Fine" style="font-family:var(--font-data);font-size:13px;color:var(--data-val)">${totalFine > 0 ? fmtToSection(totalFine, tab.sieveData, 'Fine') : ''}</span>${lossStr}
       </div>`;
     }
   }
@@ -2128,13 +2397,13 @@ function bindSieveEvents(tab) {
 
 // ── QUEUE ─────────────────────────────────────────────────────
 function updateQueueBadge() {
-  const badge = document.getElementById('queue-badge');
+  const count = document.getElementById('queue-tab-count');
+  if (!count) return;
   if (state.queue.length === 0) {
-    badge.textContent = 'Queue Empty';
-    badge.classList.remove('has-items');
+    count.style.display = 'none';
   } else {
-    badge.textContent = `Queue: ${state.queue.length}`;
-    badge.classList.add('has-items');
+    count.style.display = '';
+    count.textContent = state.queue.length;
   }
 }
 
@@ -2371,30 +2640,57 @@ function assignTabLabel(baseName) {
 }
 
 // ── PRODUCT SELECTION ─────────────────────────────────────────
+// Snapshot every entered sieve value on a tab, keyed by "Type|Label", so a
+// product switch can restore the ones the new product also uses. Only rows the
+// user actually touched are captured.
+function snapshotEnteredValues(tab) {
+  const snap = {};
+  (tab.sieveData || []).forEach(r => {
+    if (r.isTouched && (r.cumulative !== null || r.individual !== null)) {
+      snap[r.sieveType + '|' + r.sieveLabel] = {
+        cumulative: r.cumulative,
+        individual: r.individual,
+        isUserEnteredIndividual: r.isUserEnteredIndividual,
+        isTouched: r.isTouched,
+      };
+    }
+  });
+  return snap;
+}
+
 async function selectProduct(tab, productName) {
   const specs = await getProductSpecs(productName, tab.quarry);
   const prod = state.products.find(p => p.Product === productName && p.Quarry === tab.quarry);
+
+  // Retain what's already entered. Merge any prior retained set (from an
+  // earlier switch this session) with the current on-screen values, so
+  // switching A -> B -> A brings A's values back.
+  tab.retainedValues = { ...(tab.retainedValues || {}), ...snapshotEnteredValues(tab) };
+
   tab.product = productName;
   tab.productId = prod?.ProductID || null;
   tab.isCustomProduct = false;
   tab.customFineSectionMode = '';
-  tab.sieveData = specs.map(s =>
-    createSieveRow(s.SieveLabel, s.SieveType, s.SieveOrder, s.MinPercent ?? null, s.MaxPercent ?? null)
-  );
-  // Add Pan rows — same as the custom-product builder does. Pan is never
-  // part of a product's spec (it has no min/max), so it isn't stored as a
-  // sieve column; it's always implied whenever that section has sieves.
+  tab.sieveData = specs.map(s => {
+    const row = createSieveRow(s.SieveLabel, s.SieveType, s.SieveOrder, s.MinPercent ?? null, s.MaxPercent ?? null);
+    const saved = tab.retainedValues[s.SieveType + '|' + s.SieveLabel];
+    if (saved) Object.assign(row, saved);   // re-fill matching sieve
+    return row;
+  });
+  // Pan rows — implied per section, carry retained Pan value if present.
   if (specs.some(s => s.SieveType === 'Coarse')) {
-    tab.sieveData.push(createSieveRow('Pan', 'Coarse', 10, null, null));
+    const pan = createSieveRow('Pan', 'Coarse', 10, null, null);
+    const s = tab.retainedValues['Coarse|Pan']; if (s) Object.assign(pan, s);
+    tab.sieveData.push(pan);
   }
   if (specs.some(s => s.SieveType === 'Fine')) {
-    tab.sieveData.push(createSieveRow('Pan', 'Fine', 200, null, null));
+    const panRow = createSieveRow('Pan', 'Fine', 200, null, null);
+    const s = tab.retainedValues['Fine|Pan']; if (s) Object.assign(panRow, s);
+    tab.sieveData.push(panRow);
   }
-  tab.initialWeight = null;
-  tab.fineInitialWeight = null;
-  tab.dryWeight = null;
-  tab.washedDryWeight = null;
-  tab.notes = '';
+  // Weight fields are section-level, not per-sieve; keep them across switches
+  // too (they're only submitted when relevant to the chosen product).
+  tab.notes = tab.notes || '';
   tab.tabLabel = assignTabLabel(productName);
   await saveTab(tab);
   renderAll();
@@ -2492,9 +2788,17 @@ async function init() {
   }, { passive: true });
 
   await openDB();
+  // Theme (from IndexedDB; localStorage mirror already painted early)
+  await loadTheme();
   // Load queue
   const qItems = await dbGetAll('queue');
   state.queue = qItems || [];
+  // Load SG in-progress tests (persist across restarts for 24-hour tests)
+  const sgSaved = await dbGetAll('sgtabs');
+  if (sgSaved?.length) {
+    state.sgTabs = sgSaved.sort((a, b) => new Date(a.startedAt) - new Date(b.startedAt));
+    state.activeSgTabId = state.sgTabs[0].tabId;
+  }
   // Auth
   const authed = await initAuth();
   if (!authed) {
@@ -2531,7 +2835,7 @@ async function init() {
     const tab = getActiveTab();
     if (tab && !tab.quarry) tab.quarry = lastQ.value;
   }
-  renderAll();
+  switchScreen('gradations');   // sets body class + renders
   document.getElementById('loading').classList.add('hidden');
   updateQueueBadge();
 }
@@ -2555,10 +2859,222 @@ async function switchTab(tabId) {
   renderAll();
 }
 
+// ── SCREEN ROUTER ─────────────────────────────────────────────
+const SCREENS = ['gradations', 'sg', 'queue', 'review', 'settings'];
+function switchScreen(name) {
+  if (!SCREENS.includes(name)) name = 'gradations';
+  state.activeScreen = name;
+  // body class drives which screen body + which header fields show
+  SCREENS.forEach(s => document.body.classList.toggle('screen-' + s, s === name));
+  // header tab active state
+  document.querySelectorAll('.htab').forEach(t =>
+    t.classList.toggle('active', t.dataset.screen === name));
+  renderAll();
+}
+
 function renderAll() {
-  renderTabs();
-  renderHeader();
-  renderSieveSection();
+  // Ensure a screen class is always present (first paint)
+  if (!SCREENS.some(s => document.body.classList.contains('screen-' + s))) {
+    document.body.classList.add('screen-' + state.activeScreen);
+  }
+  updateQueueBadge();
+  const screen = state.activeScreen;
+  if (screen === 'gradations') {
+    renderTabs();
+    renderHeader();
+    renderSieveSection();
+  } else if (screen === 'sg') {
+    renderSgTabs();
+    renderSgSection();
+  } else if (screen === 'queue') {
+    renderQueueBody();
+  } else if (screen === 'review') {
+    renderReview();
+  } else if (screen === 'settings') {
+    renderSettings();
+  }
+}
+
+// ── SG / ABSORPTION (shell) ───────────────────────────────────
+// Full test entry comes in a later stage. For now this is a real screen with
+// its own bottom tab bar and per-tab state that survives screen switches and
+// app restarts (24-hour tests), plus the coarse/fine type selector.
+function createSgTab(defaults = {}) {
+  return {
+    tabId: crypto.randomUUID(),
+    tabLabel: defaults.tabLabel || 'SG Test',
+    sgType: defaults.sgType || 'Coarse',   // Coarse | Fine
+    technician: defaults.technician || (state.user?.displayName || ''),
+    startedAt: defaults.startedAt || new Date().toISOString(),
+    data: defaults.data || {},             // reserved for later fields
+  };
+}
+async function saveSgTab(tab) { try { await dbPut('sgtabs', tab); } catch (_) {} }
+
+function getActiveSgTab() {
+  return state.sgTabs.find(t => t.tabId === state.activeSgTabId) || null;
+}
+
+function renderSgTabs() {
+  const tabbar = document.getElementById('tabbar');
+  if (state.activeScreen !== 'sg') return;
+  tabbar.querySelectorAll('.tab-btn').forEach(b => b.remove());
+  const newBtn = document.getElementById('btn-new-tab');
+  state.sgTabs.forEach(tab => {
+    const btn = document.createElement('button');
+    btn.className = 'tab-btn' + (tab.tabId === state.activeSgTabId ? ' active' : '');
+    btn.textContent = tab.tabLabel;
+    btn.dataset.tabId = tab.tabId;
+    btn.addEventListener('click', () => { state.activeSgTabId = tab.tabId; renderAll(); });
+    tabbar.insertBefore(btn, newBtn);
+  });
+}
+
+function renderSgSection() {
+  const el = document.getElementById('sg-section');
+  const tab = getActiveSgTab();
+  if (state.sgTabs.length === 0) {
+    el.innerHTML = `<div class="screen-empty">
+      <p class="screen-empty-title">No SG/Absorption tests open</p>
+      <p class="screen-empty-sub">Tap + below to start one. Tests stay saved here while you work in other tabs.</p>
+    </div>`;
+    return;
+  }
+  if (!tab) { state.activeSgTabId = state.sgTabs[0].tabId; return renderSgSection(); }
+  el.innerHTML = `<div class="screen-pad">
+    <div class="weight-row" style="padding:10px 16px">
+      <span class="weight-label">Type:</span>
+      <select id="sg-type" class="sg-type-select">
+        <option value="Coarse"${tab.sgType==='Coarse'?' selected':''}>Coarse</option>
+        <option value="Fine"${tab.sgType==='Fine'?' selected':''}>Fine</option>
+      </select>
+    </div>
+    <div class="screen-empty" style="margin-top:24px">
+      <p class="screen-empty-title">${tab.sgType} SG/Absorption</p>
+      <p class="screen-empty-sub">Test entry fields coming soon. This tab is saved and won't be cleared.</p>
+    </div>
+  </div>`;
+  const sel = document.getElementById('sg-type');
+  if (sel) sel.addEventListener('change', async e => {
+    tab.sgType = e.target.value;
+    await saveSgTab(tab);
+    renderSgSection();
+  });
+}
+
+// ── REVIEW (placeholder) ──────────────────────────────────────
+function renderReview() {
+  const el = document.getElementById('review-section');
+  el.innerHTML = `<div class="screen-empty">
+    <p class="screen-empty-title">Review &amp; Export</p>
+    <p class="screen-empty-sub">Coming next: pick a date range of sample or submitted tests, review them grouped by quarry and product, and export a shareable summary.</p>
+  </div>`;
+}
+
+// ── QUEUE (as a screen) ───────────────────────────────────────
+function renderQueueBody() {
+  const body = document.getElementById('queue-body');
+  // Build the fixed structure once; renderQueueScreen() fills #queue-list.
+  if (!document.getElementById('queue-list')) {
+    body.innerHTML = `
+      <div id="queue-header">
+        <h1>Pending Queue</h1>
+        <button id="btn-queue-submit-all">Submit All</button>
+      </div>
+      <div id="queue-list">
+        <div id="queue-empty">
+          <p style="font-size:32px">📭</p>
+          <p>No queued gradations</p>
+        </div>
+      </div>`;
+    body.querySelector('#btn-queue-submit-all').addEventListener('click', async () => {
+      if (!state.isOnline) { toast('No connection', 'error'); return; }
+      const n = await flushQueue();
+      renderQueueScreen();
+      updateQueueBadge();
+      if (n > 0) toast(`${n} gradation${n > 1 ? 's' : ''} submitted`, 'success');
+      else toast('Nothing to submit or upload failed', 'warning');
+    });
+  }
+  renderQueueScreen();
+}
+
+// ── SETTINGS ──────────────────────────────────────────────────
+function renderSettings() {
+  const el = document.getElementById('settings-section');
+  const colorRows = THEME_FIELDS.map(([label, prop]) => {
+    const val = themeState[prop] || THEME_DEFAULTS[prop];
+    // rgba defaults can't feed <input type=color>; show a hex swatch input
+    // plus keep the raw value editable as text for alpha colors.
+    const hex = toHexInput(val);
+    return `<div class="set-row">
+      <span class="set-label">${label}</span>
+      <span class="set-controls">
+        <input type="color" class="set-color" data-prop="${prop}" value="${hex}">
+        <input type="text" class="set-text" data-prop="${prop}" value="${val}" spellcheck="false" autocapitalize="off">
+      </span>
+    </div>`;
+  }).join('');
+  el.innerHTML = `<div class="settings-wrap">
+    <h2 class="set-h">Appearance</h2>
+    <div class="set-row">
+      <span class="set-label">Mode</span>
+      <span class="set-controls">
+        <button class="set-mode${themeState.mode==='light'?' on':''}" data-mode="light">Light</button>
+        <button class="set-mode${themeState.mode==='dark'?' on':''}" data-mode="dark">Dark</button>
+      </span>
+    </div>
+    <h2 class="set-h">Colors</h2>
+    ${colorRows}
+    <div class="set-actions">
+      <button class="set-reset" id="btn-theme-reset">Reset to defaults</button>
+    </div>
+    <h2 class="set-h">Account</h2>
+    <div class="set-row">
+      <span class="set-label">${esc(state.user?.displayName || 'Signed in')}</span>
+      <span class="set-controls"><button class="set-signout" id="btn-settings-signout">Sign Out</button></span>
+    </div>
+  </div>`;
+
+  el.querySelectorAll('.set-color').forEach(inp => {
+    inp.addEventListener('input', e => {
+      const prop = e.target.dataset.prop;
+      themeState[prop] = e.target.value;
+      const twin = el.querySelector(`.set-text[data-prop="${prop}"]`);
+      if (twin) twin.value = e.target.value;
+      saveTheme();
+    });
+  });
+  el.querySelectorAll('.set-text').forEach(inp => {
+    inp.addEventListener('change', e => {
+      const prop = e.target.dataset.prop;
+      const v = e.target.value.trim();
+      themeState[prop] = v || THEME_DEFAULTS[prop];
+      const twin = el.querySelector(`.set-color[data-prop="${prop}"]`);
+      if (twin) twin.value = toHexInput(themeState[prop]);
+      saveTheme();
+    });
+  });
+  el.querySelectorAll('.set-mode').forEach(btn => {
+    btn.addEventListener('click', () => {
+      themeState.mode = btn.dataset.mode;
+      saveTheme();
+      renderSettings();
+    });
+  });
+  el.querySelector('#btn-theme-reset').addEventListener('click', resetTheme);
+  el.querySelector('#btn-settings-signout').addEventListener('click', () => showOverlay('overlay-sign-out'));
+}
+
+// Best-effort hex for the native color input. rgba()/named colors fall back
+// to a neutral so the swatch is usable; the text field keeps the true value.
+function toHexInput(v) {
+  if (typeof v !== 'string') return '#000000';
+  if (/^#[0-9a-f]{6}$/i.test(v)) return v;
+  if (/^#[0-9a-f]{3}$/i.test(v)) return '#' + v.slice(1).split('').map(c => c + c).join('');
+  const m = v.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+  if (m) return '#' + [m[1], m[2], m[3]].map(n => (+n).toString(16).padStart(2, '0')).join('');
+  return '#808080';
 }
 
 // ── TOAST ─────────────────────────────────────────────────────
@@ -2666,27 +3182,26 @@ document.addEventListener('DOMContentLoaded', () => {
     npInput.dispatchEvent(new Event('input', { bubbles: true }));
   });
 
-  // New tab
+  // New tab (context depends on the active screen)
   document.getElementById('btn-new-tab').addEventListener('click', async () => {
-    await addNewTab();
-    renderAll();
+    if (state.activeScreen === 'sg') {
+      const t = createSgTab({ technician: state.user?.displayName || '' });
+      state.sgTabs.push(t);
+      state.activeSgTabId = t.tabId;
+      await saveSgTab(t);
+      renderAll();
+    } else {
+      await addNewTab();
+      renderAll();
+    }
   });
 
-  // Queue badge
-  document.getElementById('queue-badge').addEventListener('click', () => {
-    renderQueueScreen();
-    document.getElementById('queue-screen').classList.remove('hidden');
+  // Header tab navigation
+  document.querySelectorAll('.htab').forEach(tab => {
+    tab.addEventListener('click', () => switchScreen(tab.dataset.screen));
   });
 
-  // Queue back
-  document.getElementById('btn-queue-back').addEventListener('click', () => {
-    document.getElementById('queue-screen').classList.add('hidden');
-  });
-
-  // Sign out
-  document.getElementById('btn-sign-out').addEventListener('click', () => {
-    showOverlay('overlay-sign-out');
-  });
+  // Sign out (button lives in Settings; overlay wiring stays here)
   document.getElementById('btn-sign-out-cancel').addEventListener('click', () => showOverlay(null));
   document.getElementById('btn-sign-out-confirm').addEventListener('click', () => {
     showOverlay(null);
@@ -2710,14 +3225,11 @@ document.addEventListener('DOMContentLoaded', () => {
     showOverlay(null);
   });
 
-  // Queue submit all
-  document.getElementById('btn-queue-submit-all').addEventListener('click', async () => {
-    if (!state.isOnline) { toast('No connection', 'error'); return; }
-    const n = await flushQueue();
-    renderQueueScreen();
-    if (n > 0) toast(`${n} gradation${n > 1 ? 's' : ''} submitted`, 'success');
-    else toast('Nothing to submit or upload failed', 'warning');
-  });
+  // (Queue "Submit All" is bound inside renderQueueBody, since the button is
+  //  created dynamically when the Queue screen is first rendered.)
+
+  // New SG tab (bottom + button, when on the SG screen)
+  // Handled in the shared btn-new-tab handler below.
 
   // Submit confirm
   document.getElementById('btn-submit-cancel').addEventListener('click', () => showOverlay(null));
@@ -2796,9 +3308,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!tab) return;
     tab.quarry = e.target.value;
     await dbPut('prefs', { key: 'lastQuarry', value: tab.quarry });
-    // Reset product if it doesn't exist at this quarry
+    // Reset product if it doesn't exist at this quarry (retain entered values)
     const exists = state.products.some(p => p.Product === tab.product && p.Quarry === tab.quarry);
     if (!exists) {
+      tab.retainedValues = { ...(tab.retainedValues || {}), ...snapshotEnteredValues(tab) };
       tab.product = '';
       tab.sieveData = [];
       tab.tabLabel = 'New';
@@ -2813,21 +3326,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const tab = getActiveTab();
     if (!tab) return;
     const newProduct = e.target.value;
-    const hasData = tab.sieveData.some(r => r.isTouched) ||
-      tab.initialWeight || tab.fineInitialWeight || tab.dryWeight || tab.notes;
-    if (hasData && tab.product && newProduct !== tab.product) {
-      state.pendingProductChange = {
-        tab,
-        productName: newProduct,
-      };
-      showOverlay('overlay-change-product');
-      return;
-    }
+    // Values are now retained across product switches (matching sieves refill,
+    // others are hidden but kept and never submitted), so no clear-warning.
     if (newProduct === '__custom__') {
       openCustomDialog();
     } else if (newProduct) {
       await selectProduct(tab, newProduct);
     } else {
+      // "Select Product..." (blank): retain values, just drop the active product
+      tab.retainedValues = { ...(tab.retainedValues || {}), ...snapshotEnteredValues(tab) };
       tab.product = '';
       tab.sieveData = [];
       tab.tabLabel = 'New';
