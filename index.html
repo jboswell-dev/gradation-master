@@ -80,18 +80,19 @@ body.dark {
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { height: 100%; }
 /* position:fixed on body is the reliable iOS scroll-lock — the page itself
-   can never rubber-band because it is not scrollable at all. Height comes
-   from --vhpx (set from visualViewport by JS, updated on rotate/resize)
-   so there is never a stale-100vh white bar at the bottom. */
+   can never rubber-band because it is not scrollable at all. inset:0 fills the
+   full physical screen (incl. safe areas) in an installed PWA. */
 body {
   position: fixed;
   inset: 0;
   width: 100%;
-  /* --vhpx (visualViewport.height) excludes the home-indicator area in an
-     installed PWA, so add the bottom inset back to reach the physical screen
-     bottom — otherwise an unpainted strip shows below the tab bar in
-     standalone mode. In Safari the inset is ~0, so this is a no-op there. */
-  height: calc(var(--vhpx, 100%) + env(safe-area-inset-bottom));
+  /* No explicit height: position:fixed + inset:0 makes the body fill the
+     initial containing block, which in an installed PWA (viewport-fit=cover)
+     is the FULL physical screen including the home-indicator area. An explicit
+     height (e.g. from visualViewport) would stop short of the bottom safe area
+     and leave an unpainted strip below the tab bar in standalone mode. This
+     also tracks rotation correctly since it never uses vh units. */
+  height: 100%;
   overflow: hidden;
   background: var(--stone);
   overscroll-behavior: none;
@@ -166,9 +167,12 @@ button { cursor: pointer; }
   margin-bottom: 8px;
 }
 /* The 6 gradation fields only show on the Gradations screen. */
-body:not(.screen-gradations) #header-fields { display: none; }
-#header-fields {
-  display: grid;
+/* Header field groups: each shows only on its own screen. */
+#header-fields, #sg-header-fields, #review-header-fields { display: none; }
+body.screen-gradations #header-fields,
+body.screen-sg #sg-header-fields,
+body.screen-review #review-header-fields { display: grid; }
+#header-fields, #sg-header-fields, #review-header-fields {
   grid-template-columns: 1fr 1fr;
   gap: 6px;
 }
@@ -847,79 +851,17 @@ body.numpad-open #sg-section { padding-bottom: var(--numpad-h); }
   font-weight: 600;
 }
 
-/* ── SG / ABSORPTION FORM ──────────────────────────────────────── */
-.sg-form { padding: 12px 14px 4px; }
-.sg-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px 12px;
-}
-.sg-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.sg-lab {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .4px;
-  color: var(--text-sub);
-}
-.sg-input {
-  background: var(--input-bg);
-  color: var(--data-val);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 9px 10px;
-  font-size: 15px;
-  width: 100%;
-  font-family: var(--font-data);
-}
-select.sg-input, input[type="date"].sg-input, input[type="datetime-local"].sg-input {
-  font-family: var(--font-ui);
-}
-.sg-input:focus { border-color: var(--btn-bg); box-shadow: 0 0 0 2px rgba(139,0,0,.12); }
+/* ── SG / ABSORPTION (row layout, matches gradation weight-rows) ── */
+#sg-section .weight-label { width: 190px; }
+#sg-section .weight-input { width: 120px; }
+#sg-section .sg-dt { width: 200px; font-family: var(--font-ui); }
 /* Editable auto-calc fields (Time In Water, Immersed Sample Weight) get a
-   subtle tint so it's clear they're computed but can be overridden. */
-.sg-calc-edit { background: color-mix(in srgb, var(--input-bg) 82%, var(--btn-bg) 8%); }
-.sg-sec-h {
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .6px;
-  color: var(--text-sub);
-  margin: 18px 2px 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
-.sg-results {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px 12px;
-}
-.sg-res {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  background: var(--white);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 10px 12px;
-}
-.sg-res span { font-size: 13px; font-weight: 500; color: var(--text-sub); }
-.sg-res b { font-size: 16px; font-family: var(--font-data); color: var(--data-val); }
-#sg-notes {
-  width: 100%;
-  min-height: 44px;
-  background: var(--input-bg);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 8px 10px;
-  font-size: 14px;
-  resize: none;
-  margin-bottom: 8px;
-}
-@media (min-width: 768px) {
-  .sg-grid, .sg-results { grid-template-columns: 1fr 1fr 1fr 1fr; }
+   subtle tint so it's clear they're computed but overridable. */
+#sg-section .sg-calc-edit { background: color-mix(in srgb, var(--input-bg) 84%, var(--btn-bg) 10%); }
+#sg-section .weight-computed { font-size: 15px; font-weight: 600; }
+@media (max-width: 480px) {
+  #sg-section .weight-label { width: 150px; }
+  #sg-section .sg-dt { width: 170px; }
 }
 
 /* ── SETTINGS (always readable: fixed colors, NOT chrome vars) ──── */
@@ -985,7 +927,55 @@ select.sg-input, input[type="date"].sg-input, input[type="datetime-local"].sg-in
   padding: 8px 16px; border-radius: var(--radius);
 }
 
-/* ── QUEUE screen body ─────────────────────────────────────────── */
+/* ── REVIEW / EXPORT ──────────────────────────────────────────── */
+#review-section { background: var(--stone); }
+#review-content { padding: 10px 14px 4px; }
+.rv-actions-top { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.rv-btn-primary {
+  background: var(--btn-bg); color: var(--btn-text);
+  font-size: 14px; font-weight: 600; padding: 9px 16px; border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.rv-btn-ghost {
+  font-size: 13px; font-weight: 600; color: var(--text-sub);
+  padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--white);
+}
+.rv-quarry-h {
+  font-size: 15px; font-weight: 800; color: var(--text);
+  margin: 14px 2px 6px; padding-bottom: 4px; border-bottom: 2px solid var(--btn-bg);
+}
+.rv-prod-h {
+  display: flex; align-items: center; gap: 10px;
+  margin: 8px 2px 2px; padding: 6px 4px;
+}
+.rv-prod-name { font-size: 14px; font-weight: 700; color: var(--text); flex: 1; }
+.rv-badge {
+  font-size: 10px; font-weight: 800; letter-spacing: .5px;
+  background: var(--steel); color: #fff;
+  padding: 1px 6px; border-radius: 8px; vertical-align: middle;
+}
+.rv-prod-count {
+  font-size: 11px; font-weight: 700; color: var(--text-sub);
+  background: var(--input-bg); border-radius: 10px; padding: 1px 8px;
+}
+.rv-test {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 4px 8px 24px;
+  border-bottom: 1px solid var(--border);
+}
+.rv-test-main { font-size: 14px; color: var(--text); flex-shrink: 0; }
+.rv-test-sub { font-size: 12px; color: var(--text-sub); font-family: var(--font-data); margin-left: auto; text-align: right; }
+.rv-check {
+  width: 22px; height: 22px; border-radius: 5px;
+  border: 2px solid var(--steel-lt); flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--white);
+}
+.rv-check.on { background: var(--btn-bg); border-color: var(--btn-bg); }
+.rv-check.on::after { content: '✓'; color: var(--btn-text); font-size: 14px; font-weight: 700; }
+.rv-check.part { background: var(--steel-lt); border-color: var(--steel-lt); }
+.rv-check.part::after { content: '–'; color: #fff; font-size: 15px; font-weight: 800; }
 #queue-body { background: var(--stone); }
 #queue-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -1085,6 +1075,54 @@ select.sg-input, input[type="date"].sg-input, input[type="datetime-local"].sg-in
       <div class="header-row">
         <span class="header-label">Time</span>
         <input class="header-input" id="inp-time" type="time">
+      </div>
+    </div>
+
+    <!-- SG/Absorption header fields (shown only on the SG screen) -->
+    <div id="sg-header-fields">
+      <div class="header-row">
+        <span class="header-label">Quarry</span>
+        <select class="header-input" id="sg-quarry"><option value="">Select...</option></select>
+      </div>
+      <div class="header-row">
+        <span class="header-label">Sample</span>
+        <select class="header-input" id="sg-sample">
+          <option value="">Select...</option>
+          <option value='3/4"'>3/4"</option>
+          <option value='9/16" + SR'>9/16" + SR</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="header-row">
+        <span class="header-label">Tech</span>
+        <input class="header-input" id="sg-tech" type="text" placeholder="Name">
+      </div>
+      <div class="header-row">
+        <span class="header-label">Date</span>
+        <input class="header-input" id="sg-sampledate" type="date">
+      </div>
+    </div>
+
+    <!-- Review header fields (shown only on the Review screen) -->
+    <div id="review-header-fields">
+      <div class="header-row">
+        <span class="header-label">Quarry</span>
+        <select class="header-input" id="rv-quarry"><option value="__all__">All Quarries</option></select>
+      </div>
+      <div class="header-row">
+        <span class="header-label">By</span>
+        <select class="header-input" id="rv-datetype">
+          <option value="submitted">Submitted Date</option>
+          <option value="sample">Sample Date</option>
+        </select>
+      </div>
+      <div class="header-row">
+        <span class="header-label">Start</span>
+        <input class="header-input" id="rv-start" type="date">
+      </div>
+      <div class="header-row">
+        <span class="header-label">End</span>
+        <input class="header-input" id="rv-end" type="date">
       </div>
     </div>
   </div>
@@ -1208,10 +1246,10 @@ select.sg-input, input[type="date"].sg-input, input[type="datetime-local"].sg-in
 <div class="overlay hidden" id="overlay-change-product">
   <div class="dialog">
     <h2>Change product?</h2>
-    <p>Changing the product will clear all entered data for this tab. Proceed?</p>
+    <p>You've entered data for this tab. Switching product keeps your entered weights and refills any sieve the new product also uses. Proceed?</p>
     <div class="dialog-buttons">
       <button class="btn-secondary" id="btn-change-cancel">Cancel</button>
-      <button class="btn-danger" id="btn-change-confirm">Change</button>
+      <button class="btn-primary" id="btn-change-confirm">Change</button>
     </div>
   </div>
 </div>
@@ -1257,6 +1295,9 @@ select.sg-input, input[type="date"].sg-input, input[type="datetime-local"].sg-in
      that, MSAL's own localStorage token cache lets silent refresh work
      offline until the token actually expires. -->
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
+<!-- SheetJS (xlsx) — used by the Review tab to build the Excel summary.
+     Loaded from CDN; export is an online action anyway (it reads SharePoint). -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <script>
 'use strict';
@@ -1484,6 +1525,16 @@ const SIEVE_COLUMNS = SIEVE_DEFS.map(s => ({ key: s.key, label: s.label, type: s
 // ── STATE ─────────────────────────────────────────────────────
 let state = {
   activeScreen: 'gradations',   // gradations | sg | queue | review | settings
+  review: {                     // Review/export screen state
+    quarry: '__all__',
+    dateType: 'submitted',      // submitted | sample
+    start: '',
+    end: '',
+    loading: false,
+    error: '',
+    groups: null,               // grouped results after a search
+    selected: {},               // testId -> bool
+  },
   tabs: [],
   activeTabId: null,
   sgTabs: [],                   // SG/Absorption in-progress tests (shell for now)
@@ -3184,6 +3235,8 @@ function renderSgSection() {
   const el = document.getElementById('sg-section');
   const tab = getActiveSgTab();
   if (state.sgTabs.length === 0) {
+    // Clear header fields when nothing is open
+    renderSgHeader(null);
     el.innerHTML = `<div class="screen-empty">
       <p class="screen-empty-title">No SG/Absorption tests open</p>
       <p class="screen-empty-sub">Tap + below to start one. Tests stay saved here while you work in other tabs.</p>
@@ -3192,63 +3245,51 @@ function renderSgSection() {
   }
   if (!tab) { state.activeSgTabId = state.sgTabs[0].tabId; return renderSgSection(); }
 
-  const quarryOpts = state.quarries.map(q =>
-    `<option value="${esc(q)}"${tab.quarry === q ? ' selected' : ''}>${esc(q)}</option>`).join('');
-  const SAMPLES = ['3/4"', '9/16" + SR', 'Other'];
-  const sampleOpts = SAMPLES.map(s =>
-    `<option value="${esc(s)}"${tab.sample === s ? ' selected' : ''}>${esc(s)}</option>`).join('');
+  renderSgHeader(tab);
 
   const imm = sgImmersed(tab), tiw = sgTime(tab);
   const abs = sgAbsorption(tab), pAbs = sgPercentAbsorption(tab);
   const bulk = sgBulk(tab), app = sgApparent(tab);
-  const num = (v, d) => v == null || isNaN(v) ? '' : v.toFixed(d);
+  const val = v => v == null || isNaN(v) ? '' : v;
+  const fx = (v, d) => v == null || isNaN(v) ? '' : v.toFixed(d);
+  // One field per row, matching the gradation weight-row look.
+  const wrow = (label, id, value, extraClass = '', dot = false) => `
+    <div class="weight-row">
+      <span class="weight-label">${label}${dot ? ' •' : ''}</span>
+      <input class="weight-input ${extraClass}" id="${id}" type="text" inputmode="none"
+        autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${value}">
+    </div>`;
+  const dtrow = (label, id, value) => `
+    <div class="weight-row">
+      <span class="weight-label">${label}</span>
+      <input class="weight-input sg-dt" id="${id}" type="datetime-local" value="${esc(value)}">
+    </div>`;
+  const rrow = (label, value) => `
+    <div class="weight-row">
+      <span class="weight-label">${label}</span>
+      <span class="weight-computed">${value}</span>
+    </div>`;
 
-  el.innerHTML = `<div id="sieve-content" class="sg-form">
-    <div class="sg-grid">
-      <label class="sg-field"><span class="sg-lab">Quarry</span>
-        <select class="sg-input" id="sg-quarry"><option value="">—</option>${quarryOpts}</select></label>
-      <label class="sg-field"><span class="sg-lab">Sample</span>
-        <select class="sg-input" id="sg-sample"><option value="">—</option>${sampleOpts}</select></label>
-      <label class="sg-field"><span class="sg-lab">Technician</span>
-        <input class="sg-input" id="sg-tech" type="text" autocomplete="off" value="${esc(tab.technician)}"></label>
-      <label class="sg-field"><span class="sg-lab">Sample Date</span>
-        <input class="sg-input" id="sg-sampledate" type="date" value="${esc(tab.sampleDate)}"></label>
-    </div>
-
-    <div class="sg-sec-h">Measurements</div>
-    <div class="sg-grid">
-      <label class="sg-field"><span class="sg-lab">Date/Time Into Water</span>
-        <input class="sg-input" id="sg-intowater" type="datetime-local" value="${esc(tab.intoWater)}"></label>
-      <label class="sg-field"><span class="sg-lab">Date/Time Tested</span>
-        <input class="sg-input" id="sg-tested" type="datetime-local" value="${esc(tab.tested)}"></label>
-      <label class="sg-field"><span class="sg-lab">Time In Water (hrs)${tab.timeInWaterManual ? ' •' : ''}</span>
-        <input class="sg-input sg-calc-edit" id="sg-tiw" type="text" inputmode="none" value="${num(tiw, 2)}"></label>
-      <span class="sg-field"></span>
-      <label class="sg-field"><span class="sg-lab">Immersed Basket Weight</span>
-        <input class="sg-input sg-wt" id="sg-basket" type="text" inputmode="none" value="${tab.basketWt ?? ''}"></label>
-      <label class="sg-field"><span class="sg-lab">Immersed Basket + Sample</span>
-        <input class="sg-input sg-wt" id="sg-basketsample" type="text" inputmode="none" value="${tab.basketSampleWt ?? ''}"></label>
-      <label class="sg-field"><span class="sg-lab">Immersed Sample Weight${tab.immersedWtManual ? ' •' : ''}</span>
-        <input class="sg-input sg-calc-edit" id="sg-immersed" type="text" inputmode="none" value="${imm == null ? '' : imm}"></label>
-      <span class="sg-field"></span>
-      <label class="sg-field"><span class="sg-lab">Surface Dried Weight</span>
-        <input class="sg-input sg-wt" id="sg-surfdry" type="text" inputmode="none" value="${tab.surfaceDriedWt ?? ''}"></label>
-      <label class="sg-field"><span class="sg-lab">Dry Weight</span>
-        <input class="sg-input sg-wt" id="sg-dry" type="text" inputmode="none" value="${tab.dryWt ?? ''}"></label>
-    </div>
-
-    <div class="sg-sec-h">Results</div>
-    <div class="sg-results">
-      <div class="sg-res"><span>Absorption</span><b>${num(abs, 1)}</b></div>
-      <div class="sg-res"><span>Percent Absorption</span><b>${pAbs == null ? '' : num(pAbs, 2) + '%'}</b></div>
-      <div class="sg-res"><span>Bulk Specific Gravity</span><b>${num(bulk, 3)}</b></div>
-      <div class="sg-res"><span>Apparent Specific Gravity</span><b>${num(app, 3)}</b></div>
-    </div>
+  el.innerHTML = `<div id="sieve-content">
+    <div class="section-label">Measurements</div>
+    ${dtrow('Date/Time Into Water', 'sg-intowater', tab.intoWater)}
+    ${dtrow('Date/Time Tested', 'sg-tested', tab.tested)}
+    ${wrow('Time in Water (hrs)', 'sg-tiw', fx(tiw, 2), 'sg-calc-edit', tab.timeInWaterManual)}
+    ${wrow('Immersed Basket Wt', 'sg-basket', val(tab.basketWt))}
+    ${wrow('Immersed Basket + Sample', 'sg-basketsample', val(tab.basketSampleWt))}
+    ${wrow('Immersed Sample Wt', 'sg-immersed', imm == null ? '' : imm, 'sg-calc-edit', tab.immersedWtManual)}
+    ${wrow('Surface Dried Wt', 'sg-surfdry', val(tab.surfaceDriedWt))}
+    ${wrow('Dry Wt', 'sg-dry', val(tab.dryWt))}
+    <div class="section-label">Results</div>
+    ${rrow('Absorption', fx(abs, 1))}
+    ${rrow('Percent Absorption', pAbs == null ? '' : fx(pAbs, 2) + '%')}
+    ${rrow('Bulk Specific Gravity', fx(bulk, 3))}
+    ${rrow('Apparent Specific Gravity', fx(app, 3))}
   </div>
   <div id="notes-section">
-    <textarea id="sg-notes" placeholder="Notes">${esc(tab.notes)}</textarea>
+    <textarea id="notes-input" placeholder="Notes">${esc(tab.notes)}</textarea>
     <div id="action-row">
-      <button id="sg-submit">Submit</button>
+      <button id="sg-submit" style="flex:1;background:var(--btn-bg);color:var(--btn-text);font-size:15px;font-weight:600;padding:10px;border-radius:var(--radius);box-shadow:var(--shadow)">Submit</button>
       <button id="btn-sg-delete" title="Delete test">
         <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -3258,7 +3299,24 @@ function renderSgSection() {
     </div>
   </div>`;
 
-  wireSgForm(tab);
+  wireSgBody(tab);
+}
+
+// Populate the SG header fields (in the red header) and wire them.
+function renderSgHeader(tab) {
+  const q = document.getElementById('sg-quarry');
+  if (q && q.options.length <= 1) {
+    q.innerHTML = '<option value="">Select...</option>' +
+      state.quarries.map(qq => `<option value="${esc(qq)}">${esc(qq)}</option>`).join('');
+  }
+  const s = document.getElementById('sg-sample');
+  const t = document.getElementById('sg-tech');
+  const d = document.getElementById('sg-sampledate');
+  if (!tab) { if (q) q.value = ''; if (s) s.value = ''; if (t) t.value = ''; if (d) d.value = ''; return; }
+  if (q) q.value = tab.quarry || '';
+  if (s) s.value = tab.sample || '';
+  if (t) t.value = tab.technician || '';
+  if (d) d.value = tab.sampleDate || '';
 }
 
 // Parse a numeric input's value to a number or null (blank -> null).
@@ -3270,38 +3328,37 @@ function sgParse(v) {
   return isNaN(n) ? null : n;
 }
 
-function wireSgForm(tab) {
+// Header field wiring is set up once (elements are static in the DOM).
+let sgHeaderWired = false;
+function wireSgHeaderOnce() {
+  if (sgHeaderWired) return;
+  sgHeaderWired = true;
+  const cur = () => getActiveSgTab();
+  const save = async (rerender) => { const t = cur(); if (t) { await saveSgTab(t); if (rerender) renderSgSection(); } };
+  document.getElementById('sg-quarry').addEventListener('change', e => { const t = cur(); if (t) { t.quarry = e.target.value; save(false); } });
+  document.getElementById('sg-sample').addEventListener('change', e => {
+    const t = cur(); if (!t) return;
+    t.sample = e.target.value; t.tabLabel = t.sample || 'SG Test';
+    save(false); renderSgTabs();
+  });
+  document.getElementById('sg-tech').addEventListener('change', e => { const t = cur(); if (t) { t.technician = e.target.value; save(false); } });
+  document.getElementById('sg-sampledate').addEventListener('change', e => { const t = cur(); if (t) { t.sampleDate = e.target.value; save(false); } });
+}
+
+function wireSgBody(tab) {
   const $ = id => document.getElementById(id);
   const save = async (rerender) => { await saveSgTab(tab); if (rerender) renderSgSection(); };
 
-  // Header selects/inputs
-  $('sg-quarry').addEventListener('change', e => { tab.quarry = e.target.value; save(false); });
-  $('sg-sample').addEventListener('change', e => {
-    tab.sample = e.target.value;
-    tab.tabLabel = tab.sample || 'SG Test';
-    save(true); renderSgTabs();
-  });
-  $('sg-tech').addEventListener('change', e => { tab.technician = e.target.value; save(false); });
-  $('sg-sampledate').addEventListener('change', e => { tab.sampleDate = e.target.value; save(false); });
-
-  // Datetimes — recompute Time In Water (unless manually overridden)
-  const onDateTime = () => {
-    tab.intoWater = $('sg-intowater').value;
-    tab.tested = $('sg-tested').value;
-    save(true);
-  };
+  const onDateTime = () => { tab.intoWater = $('sg-intowater').value; tab.tested = $('sg-tested').value; save(true); };
   $('sg-intowater').addEventListener('change', onDateTime);
   $('sg-tested').addEventListener('change', onDateTime);
 
-  // Time In Water — editable auto field
   $('sg-tiw').addEventListener('change', e => {
     const v = sgParse(e.target.value);
     if (v == null) { tab.timeInWaterManual = false; tab.timeInWater = null; }
     else { tab.timeInWaterManual = true; tab.timeInWater = v; }
     save(true);
   });
-
-  // Weights that feed Immersed Sample Weight
   $('sg-basket').addEventListener('change', e => { tab.basketWt = sgParse(e.target.value); save(true); });
   $('sg-basketsample').addEventListener('change', e => { tab.basketSampleWt = sgParse(e.target.value); save(true); });
   $('sg-immersed').addEventListener('change', e => {
@@ -3310,24 +3367,295 @@ function wireSgForm(tab) {
     else { tab.immersedWtManual = true; tab.immersedWt = v; }
     save(true);
   });
-
-  // Weights that feed the results
   $('sg-surfdry').addEventListener('change', e => { tab.surfaceDriedWt = sgParse(e.target.value); save(true); });
   $('sg-dry').addEventListener('change', e => { tab.dryWt = sgParse(e.target.value); save(true); });
-
-  $('sg-notes').addEventListener('change', e => { tab.notes = e.target.value; save(false); });
+  $('notes-input').addEventListener('change', e => { tab.notes = e.target.value; save(false); });
 
   $('btn-sg-delete').addEventListener('click', () => showOverlay('overlay-sg-delete'));
   $('sg-submit').addEventListener('click', () => showOverlay('overlay-sg-submit'));
 }
 
-// ── REVIEW (placeholder) ──────────────────────────────────────
+// ── REVIEW / EXPORT ───────────────────────────────────────────
+let reviewHeaderWired = false;
+function wireReviewHeaderOnce() {
+  if (reviewHeaderWired) return;
+  reviewHeaderWired = true;
+  const r = state.review;
+  const q = document.getElementById('rv-quarry');
+  q.addEventListener('change', e => { r.quarry = e.target.value; });
+  document.getElementById('rv-datetype').addEventListener('change', e => { r.dateType = e.target.value; });
+  document.getElementById('rv-start').addEventListener('change', e => { r.start = e.target.value; });
+  document.getElementById('rv-end').addEventListener('change', e => { r.end = e.target.value; });
+}
+
+function renderReviewHeader() {
+  const q = document.getElementById('rv-quarry');
+  if (q && q.options.length <= 1) {
+    q.innerHTML = '<option value="__all__">All Quarries</option>' +
+      state.quarries.map(qq => `<option value="${esc(qq)}">${esc(qq)}</option>`).join('');
+  }
+  const r = state.review;
+  if (q) q.value = r.quarry;
+  const dt = document.getElementById('rv-datetype'); if (dt) dt.value = r.dateType;
+  const s = document.getElementById('rv-start'); if (s && !s.value && r.start) s.value = r.start;
+  const e = document.getElementById('rv-end'); if (e && !e.value && r.end) e.value = r.end;
+  // Default the range to the current month the first time in.
+  if (!r.start || !r.end) {
+    const now = new Date();
+    const first = new Date(now.getFullYear(), now.getMonth(), 1);
+    if (!r.start) { r.start = first.toISOString().split('T')[0]; if (s) s.value = r.start; }
+    if (!r.end) { r.end = todayISO(); if (e) e.value = r.end; }
+  }
+}
+
 function renderReview() {
+  renderReviewHeader();
   const el = document.getElementById('review-section');
-  el.innerHTML = `<div class="screen-empty">
-    <p class="screen-empty-title">Review &amp; Export</p>
-    <p class="screen-empty-sub">Coming next: pick a date range of sample or submitted tests, review them grouped by quarry and product, and export a shareable summary.</p>
-  </div>`;
+  const r = state.review;
+  let body;
+  if (r.loading) {
+    body = `<div class="screen-empty"><p class="screen-empty-sub">Loading tests…</p></div>`;
+  } else if (r.error) {
+    body = `<div class="screen-empty"><p class="screen-empty-title">Couldn't load</p><p class="screen-empty-sub">${esc(r.error)}</p></div>`;
+  } else if (!r.groups) {
+    body = `<div class="screen-empty">
+      <p class="screen-empty-title">Review &amp; Export</p>
+      <p class="screen-empty-sub">Pick a quarry, a date type, and a start/end date above, then tap Find tests.</p>
+    </div>`;
+  } else if (r.groups.length === 0) {
+    body = `<div class="screen-empty"><p class="screen-empty-title">No tests found</p>
+      <p class="screen-empty-sub">Nothing matched that range. Try widening the dates or changing the date type.</p></div>`;
+  } else {
+    body = renderReviewGroups(r.groups);
+  }
+
+  const anySelected = r.groups && Object.values(r.selected).some(Boolean);
+  el.innerHTML = `<div id="review-content">
+    <div class="rv-actions-top">
+      <button id="rv-find" class="rv-btn-primary">Find tests</button>
+      ${r.groups && r.groups.length ? `<button id="rv-toggle-all" class="rv-btn-ghost">${allSelected(r) ? 'Unselect all' : 'Select all'}</button>` : ''}
+    </div>
+    ${body}
+  </div>
+  ${r.groups && r.groups.length ? `<div id="notes-section"><div id="action-row">
+    <button id="rv-export" ${anySelected ? '' : 'disabled'} style="flex:1;background:var(--btn-bg);color:var(--btn-text);font-size:15px;font-weight:600;padding:10px;border-radius:var(--radius);box-shadow:var(--shadow)${anySelected ? '' : ';opacity:.5'}">Export Excel Summary</button>
+  </div></div>` : ''}`;
+
+  document.getElementById('rv-find').addEventListener('click', reviewSearch);
+  const tgl = document.getElementById('rv-toggle-all');
+  if (tgl) tgl.addEventListener('click', () => {
+    const sel = !allSelected(r);
+    r.groups.forEach(g => g.products.forEach(p => p.tests.forEach(t => { r.selected[t._id] = sel; })));
+    renderReview();
+  });
+  const exp = document.getElementById('rv-export');
+  if (exp) exp.addEventListener('click', reviewExport);
+  el.querySelectorAll('.rv-test-check').forEach(c => c.addEventListener('click', () => {
+    r.selected[c.dataset.id] = !r.selected[c.dataset.id]; renderReview();
+  }));
+  el.querySelectorAll('.rv-prod-check').forEach(c => c.addEventListener('click', () => {
+    const g = r.groups[+c.dataset.g], p = g.products[+c.dataset.p];
+    const target = !p.tests.every(t => r.selected[t._id]);
+    p.tests.forEach(t => { r.selected[t._id] = target; });
+    renderReview();
+  }));
+}
+
+function allSelected(r) {
+  const all = [];
+  r.groups.forEach(g => g.products.forEach(p => p.tests.forEach(t => all.push(t._id))));
+  return all.length > 0 && all.every(id => r.selected[id]);
+}
+
+function renderReviewGroups(groups) {
+  const r = state.review;
+  return groups.map((g, gi) => `
+    <div class="rv-quarry-h">${esc(g.quarry)}</div>
+    ${g.products.map((p, pi) => {
+      const checked = p.tests.every(t => r.selected[t._id]);
+      const some = !checked && p.tests.some(t => r.selected[t._id]);
+      return `
+      <div class="rv-prod-h">
+        <span class="rv-check rv-prod-check ${checked ? 'on' : some ? 'part' : ''}" data-g="${gi}" data-p="${pi}"></span>
+        <span class="rv-prod-name">${esc(p.product)}${p.kind === 'sg' ? ' <span class="rv-badge">SG</span>' : ''}</span>
+        <span class="rv-prod-count">${p.tests.length}</span>
+      </div>
+      ${p.tests.map(t => `
+        <div class="rv-test">
+          <span class="rv-check rv-test-check ${r.selected[t._id] ? 'on' : ''}" data-id="${t._id}"></span>
+          <span class="rv-test-main">${esc(t._label)}</span>
+          <span class="rv-test-sub">${esc(t._sub)}</span>
+        </div>`).join('')}`;
+    }).join('')}`).join('');
+}
+
+// Read the master log in the chosen date range, group quarry -> product.
+async function reviewSearch() {
+  const r = state.review;
+  if (!r.start || !r.end) { toast('Pick a start and end date', 'warning'); return; }
+  r.loading = true; r.error = ''; r.groups = null; renderReview();
+  try {
+    const dateField = r.dateType === 'sample' ? 'SampleDate' : 'Created';
+    const start = r.start, end = r.end;
+    const inRange = (f) => {
+      let d = f[dateField];
+      if (!d) return false;
+      d = String(d).split('T')[0];
+      return d >= start && d <= end;
+    };
+    const quarryOk = (f) => r.quarry === '__all__' || (f.Quarry || '') === r.quarry;
+
+    // Fetch both lists in parallel. SG list may not have items yet — tolerate.
+    const [gradRows, sgRows] = await Promise.all([
+      spGetAll(CONFIG.LISTS.MASTER_LOG_ID),
+      spGetAll(CONFIG.LISTS.SG_LOG_ID).catch(e => { console.warn('SG fetch failed:', e); return []; }),
+    ]);
+
+    // byQuarry[quarry] = { grad: {product: [tests]}, sg: {sample: [tests]} }
+    const byQuarry = {};
+    const bucket = (quarry) => (byQuarry[quarry] = byQuarry[quarry] || { grad: {}, sg: {} });
+
+    (gradRows || []).forEach(row => {
+      const f = row.fields || {}; if (!inRange(f) || !quarryOk(f)) return;
+      const quarry = f.Quarry || '(no quarry)';
+      const product = f.Product || (f.IsCustomProduct ? 'Custom' : '(no product)');
+      bucket(quarry).grad[product] = bucket(quarry).grad[product] || [];
+      bucket(quarry).grad[product].push({
+        _id: 'g_' + row.id, _kind: 'grad', _fields: f,
+        _label: product, _sub: `${f.SampleDate || ''}${f.Technician ? ' · ' + f.Technician : ''}`,
+      });
+    });
+    (sgRows || []).forEach(row => {
+      const f = row.fields || {}; if (!inRange(f) || !quarryOk(f)) return;
+      const quarry = f.Quarry || '(no quarry)';
+      const sample = f.Sample || '(no sample)';
+      bucket(quarry).sg[sample] = bucket(quarry).sg[sample] || [];
+      bucket(quarry).sg[sample].push({
+        _id: 's_' + row.id, _kind: 'sg', _fields: f,
+        _label: sample, _sub: `${f.SampleDate || ''}${f.Technician ? ' · ' + f.Technician : ''}`,
+      });
+    });
+
+    // Build ordered groups: gradation products first, then SG samples, each as
+    // a "product" entry tagged with kind so render/export can branch.
+    const groups = Object.keys(byQuarry).sort().map(quarry => {
+      const g = byQuarry[quarry];
+      const gradProducts = Object.keys(g.grad).sort().map(product => ({
+        kind: 'grad', product, tests: g.grad[product],
+      }));
+      const sgProducts = Object.keys(g.sg).sort().map(sample => ({
+        kind: 'sg', product: sample, tests: g.sg[sample],
+      }));
+      return { quarry, products: [...gradProducts, ...sgProducts] };
+    });
+    r.groups = groups;
+    r.selected = {};
+    groups.forEach(g => g.products.forEach(p => p.tests.forEach(t => { r.selected[t._id] = true; })));
+    r.loading = false;
+    renderReview();
+  } catch (e) {
+    console.error('Review search failed:', e);
+    r.loading = false; r.error = e.message || 'Search failed'; renderReview();
+  }
+}
+
+// Build an Excel workbook of the selected tests. Gradations go on one sheet
+// (grouped by product, average row per multi-test product), SG/Absorption on a
+// second sheet (grouped by sample, average row per multi-test sample), then
+// share the workbook.
+async function reviewExport() {
+  const r = state.review;
+  if (typeof XLSX === 'undefined') { toast('Excel library still loading — try again', 'warning'); return; }
+  const gradSel = [], sgSel = [];
+  r.groups.forEach(g => g.products.forEach(p => p.tests.forEach(t => {
+    if (!r.selected[t._id]) return;
+    (t._kind === 'sg' ? sgSel : gradSel).push({ quarry: g.quarry, product: p.product, t });
+  })));
+  if (!gradSel.length && !sgSel.length) { toast('Nothing selected', 'warning'); return; }
+
+  const wb = XLSX.utils.book_new();
+
+  // ---- Gradations sheet ----
+  if (gradSel.length) {
+    const usedCols = SIEVE_COLUMNS.filter(c =>
+      gradSel.some(({ t }) => {
+        const v = t._fields[c.key + '_Pct'];
+        return v !== undefined && v !== null && v !== '';
+      }));
+    const aoa = [['Quarry', 'Product', 'Sample Date', 'Technician', ...usedCols.map(c => c.label)]];
+    const byProduct = {};
+    gradSel.forEach(row => { (byProduct[row.product] = byProduct[row.product] || []).push(row); });
+    Object.keys(byProduct).sort().forEach(product => {
+      const rowsP = byProduct[product];
+      rowsP.forEach(({ quarry, t }) => {
+        const f = t._fields;
+        aoa.push([quarry, product, f.SampleDate || '', f.Technician || '',
+          ...usedCols.map(c => {
+            const v = f[c.key + '_Pct'];
+            return v === undefined || v === null || v === '' ? '' : Number(v);
+          })]);
+      });
+      if (rowsP.length > 1) {
+        const avg = usedCols.map(c => {
+          const nums = rowsP.map(({ t }) => t._fields[c.key + '_Pct'])
+            .filter(v => v !== undefined && v !== null && v !== '').map(Number);
+          return nums.length ? Number((nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(1)) : '';
+        });
+        aoa.push(['', `${product} — AVERAGE (${rowsP.length})`, '', '', ...avg]);
+      }
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Gradations');
+  }
+
+  // ---- SG / Absorption sheet ----
+  if (sgSel.length) {
+    const SG_COLS = [
+      ['Time in Water (hrs)', 'TimeInWater', 2],
+      ['Absorption', 'Absorption', 2],
+      ['Percent Absorption', 'PercentAbsorption', 2],
+      ['Bulk SG', 'BulkSpecificGravity', 3],
+      ['Apparent SG', 'ApparentSpecificGravity', 3],
+    ];
+    const aoa = [['Quarry', 'Sample', 'Sample Date', 'Technician', ...SG_COLS.map(c => c[0])]];
+    const bySample = {};
+    sgSel.forEach(row => { (bySample[row.product] = bySample[row.product] || []).push(row); });
+    Object.keys(bySample).sort().forEach(sample => {
+      const rowsP = bySample[sample];
+      rowsP.forEach(({ quarry, t }) => {
+        const f = t._fields;
+        aoa.push([quarry, sample, f.SampleDate || '', f.Technician || '',
+          ...SG_COLS.map(([, key]) => {
+            const v = f[key];
+            return v === undefined || v === null || v === '' ? '' : Number(v);
+          })]);
+      });
+      if (rowsP.length > 1) {
+        const avg = SG_COLS.map(([, key, d]) => {
+          const nums = rowsP.map(({ t }) => t._fields[key])
+            .filter(v => v !== undefined && v !== null && v !== '').map(Number);
+          return nums.length ? Number((nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(d)) : '';
+        });
+        aoa.push(['', `${sample} — AVERAGE (${rowsP.length})`, '', '', ...avg]);
+      }
+    });
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'SG-Absorption');
+  }
+
+  const fname = `QC Summary ${r.start} to ${r.end}.xlsx`;
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+  // Prefer the native share sheet (so the user can pick Mail and the file is
+  // attached). Fall back to a plain download where file sharing isn't supported.
+  const file = new File([blob], fname, { type: blob.type });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: 'QC Summary' }); return; }
+    catch (e) { if (e.name === 'AbortError') return; }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = fname; document.body.appendChild(a); a.click();
+  a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 // ── QUEUE (as a screen) ───────────────────────────────────────
@@ -3460,6 +3788,8 @@ window.addEventListener('orientationchange', () => { setTimeout(setAppHeight, 25
 if (window.visualViewport) window.visualViewport.addEventListener('resize', setAppHeight);
 
 document.addEventListener('DOMContentLoaded', () => {
+  wireSgHeaderOnce();
+  wireReviewHeaderOnce();
   // Pre-warm requestAnimationFrame so the first Enter keypress doesn't stall
   requestAnimationFrame(() => {});
 
@@ -3498,13 +3828,31 @@ document.addEventListener('DOMContentLoaded', () => {
   // we dispatch it ourselves exactly once, on the way out of the field.
   const npDirty = new WeakSet();
 
+  // One-shot guard: after a numpad nav key blurs the last field and hides the
+  // pad, swallow the single click the browser would deliver to whatever sits
+  // beneath the finger (e.g. Submit/trash behind the pad). Only cancels a click
+  // that is NOT on a data-entry input, and only within a short window.
+  let ghostGuardUntil = 0;
+  function armGhostClickGuard() { ghostGuardUntil = Date.now() + 700; }
+  document.addEventListener('click', (e) => {
+    if (Date.now() > ghostGuardUntil) return;
+    ghostGuardUntil = 0;                       // consume the one guarded click
+    if (e.target.closest?.(NP_TARGETS)) return; // a real field tap is fine
+    e.preventDefault();
+    e.stopPropagation();
+  }, true);
+
+  // Native date/time pickers can carry .weight-input styling but must use the
+  // OS picker, not the numpad.
+  const isNumpadTarget = el => el.matches?.(NP_TARGETS) && !/^(date|time|datetime-local|month|week)$/.test(el.type || '');
+
   document.addEventListener('focusin', (e) => {
-    if (!e.target.matches?.(NP_TARGETS)) return;
+    if (!isNumpadTarget(e.target)) return;
     npInput = e.target;
     document.body.classList.add('numpad-open');
   });
   document.addEventListener('focusout', (e) => {
-    if (!e.target.matches?.(NP_TARGETS)) return;
+    if (!isNumpadTarget(e.target)) return;
     if (npDirty.has(e.target)) {
       npDirty.delete(e.target);
       e.target.dispatchEvent(new Event('change', { bubbles: true }));
@@ -3512,7 +3860,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Defer: if focus lands on another data-entry input, keep the pad open.
     setTimeout(() => {
       const ae = document.activeElement;
-      if (ae && ae.matches?.(NP_TARGETS)) { npInput = ae; return; }
+      if (ae && isNumpadTarget(ae)) { npInput = ae; return; }
       npInput = null;
       document.body.classList.remove('numpad-open');
     }, 0);
@@ -3525,9 +3873,18 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     if (!npInput || !document.contains(npInput)) return;
     const k = btn.dataset.k;
-    if (k === 'enter')      { sieveNav(npInput, 'enter'); return; }
-    if (k === 'next')       { sieveNav(npInput, 'next');  return; }
-    if (k === 'prev')       { sieveNav(npInput, 'prev');  return; }
+    // Enter/Next/Prev may blur the last field, which hides the numpad. The
+    // finger is still down over the pad; when it lifts, the browser would send
+    // a click to whatever element is now beneath that point (often the Submit
+    // or trash button that sat behind the pad). Arm a one-shot guard to swallow
+    // that ghost click — but ONLY when the nav actually closed the pad (blur),
+    // not when it just advanced to another field.
+    if (k === 'enter' || k === 'next' || k === 'prev') {
+      const mode = k === 'prev' ? 'prev' : (k === 'next' ? 'next' : 'enter');
+      const result = sieveNav(npInput, mode);
+      if (result === 'blur') armGhostClickGuard();
+      return;
+    }
     if (k === 'bksp') {
       const s = npInput.selectionStart ?? npInput.value.length;
       const epos = npInput.selectionEnd ?? s;
@@ -3661,11 +4018,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (state.pendingProductChange) {
       const { tab, productName } = state.pendingProductChange;
       state.pendingProductChange = null;
-      if (productName === '__custom__') {
-        openCustomDialog();
-      } else {
-        await selectProduct(tab, productName);
-      }
+      await applyProductChange(tab, productName);
     }
   });
 
@@ -3722,14 +4075,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const tab = getActiveTab();
     if (!tab) return;
     const newProduct = e.target.value;
-    // Values are now retained across product switches (matching sieves refill,
-    // others are hidden but kept and never submitted), so no clear-warning.
+    // Values are retained across product switches (matching sieves refill,
+    // others are kept hidden and never submitted). Still confirm the switch
+    // when data has already been entered, so it isn't triggered by accident.
+    const hasData = (tab.sieveData || []).some(r => r.isTouched) ||
+      tab.initialWeight != null || tab.fineInitialWeight != null ||
+      tab.dryWeight != null || tab.washedDryWeight != null || (tab.notes && tab.notes.trim());
+    if (hasData && tab.product && newProduct !== tab.product) {
+      state.pendingProductChange = { tab, productName: newProduct };
+      showOverlay('overlay-change-product');
+      return;
+    }
+    await applyProductChange(tab, newProduct);
+  });
+
+  // Shared by the direct path and the confirm dialog.
+  window.applyProductChange = async (tab, newProduct) => {
     if (newProduct === '__custom__') {
       openCustomDialog();
     } else if (newProduct) {
       await selectProduct(tab, newProduct);
     } else {
-      // "Select Product..." (blank): retain values, just drop the active product
+      // "Select Product..." (blank): retain values, drop the active product
       tab.retainedValues = { ...(tab.retainedValues || {}), ...snapshotEnteredValues(tab) };
       tab.product = '';
       tab.sieveData = [];
@@ -3737,7 +4104,7 @@ document.addEventListener('DOMContentLoaded', () => {
       await saveTab(tab);
       renderAll();
     }
-  });
+  };
 
   document.getElementById('sel-type').addEventListener('change', async (e) => {
     const tab = getActiveTab();
