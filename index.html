@@ -173,6 +173,10 @@ button { cursor: pointer; }
 body.screen-gradations #header-fields,
 body.screen-sg #sg-header-fields,
 body.screen-review #review-header-fields { display: grid; }
+/* When there's no open test on gradations/SG, the header shows only the tab
+   strip — no quarry/product/tech/date rows. */
+body.no-active-tab.screen-gradations #header-fields,
+body.no-active-tab.screen-sg #sg-header-fields { display: none; }
 #header-fields, #sg-header-fields, #review-header-fields {
   grid-template-columns: 1fr 1fr;
   gap: 6px;
@@ -469,32 +473,25 @@ input[type=number] { -moz-appearance: textfield; }
 /* Safe-area filler at the physical bottom, behind everything. Height is the
    bottom inset (0 in Safari; the home-indicator strip in a standalone PWA).
    Colored to match the tab bar on tab-bar screens so there's no bare gap. */
-#safe-bottom {
-  position: fixed;
-  left: 0; right: 0; bottom: 0;
-  height: env(safe-area-inset-bottom);
-  background: var(--stone);
-  z-index: 0;
-  pointer-events: none;
-}
-body.screen-gradations #safe-bottom,
-body.screen-sg #safe-bottom { background: var(--tab2-bg); }
-
 /* ── TAB BAR ────────────────────────────────────────────────── */
-/* Flush, no extra safe-area padding (that padding showed as a colored strip
-   below the tabs). Any home-indicator strip beneath the app is painted by
-   #safe-bottom (above) so it's never a bare white/black gap. */
+/* The bar fills --tabbar-h PLUS the bottom safe-area inset and reaches the
+   physical screen bottom, so there's never a gap or a second strip below it.
+   Its buttons are given exactly --tabbar-h of height (align-items:flex-start +
+   fixed child height), so they sit in the top portion and the inset area below
+   is simply more tab-bar-colored background — no content under the home
+   indicator, no double bar. In Safari the inset is 0, so it's just --tabbar-h. */
 #tabbar {
   background: var(--tab2-bg);
-  height: var(--tabbar-h);
+  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
   display: flex;
-  align-items: stretch;
+  align-items: flex-start;
   flex-shrink: 0;
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
+#tabbar > * { height: var(--tabbar-h); }
 /* Screens without their own bottom tabs hide the bar entirely. */
 body.screen-queue #tabbar,
 body.screen-review #tabbar,
@@ -793,24 +790,29 @@ body.screen-settings #tabbar { display: none; }
 
 /* ── OFFLINE BANNER ─────────────────────────────────────────── */
 #offline-banner {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  background: linear-gradient(180deg, rgba(146,64,14,0.97) 0%, rgba(146,64,14,0.92) 100%);
-  color: var(--white);
+  background: #B45309;
+  color: #FFFFFF;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: .2px;
   text-align: center;
-  /* Span from the physical top (under the status bar) down to just above the
-     header tab strip — padding-top clears the status bar; padding-bottom gives
-     it height instead of a thin flat line. */
-  padding: calc(env(safe-area-inset-top) + 6px) 12px 12px;
-  z-index: 20;
   display: none;
-  box-shadow: 0 2px 10px rgba(0,0,0,.3);
+  align-items: center;
+  justify-content: center;
+  /* Occupy the status-bar strip (date/time/battery zone) plus a little, so the
+     warning sits right where the system indicators are, then a few px below.
+     min-height guarantees it's visible even where the inset is 0 (Safari). */
+  padding-top: env(safe-area-inset-top);
+  min-height: calc(env(safe-area-inset-top) + 22px);
+  padding-bottom: 4px;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,.35);
 }
-#offline-banner.show { display: block; }
+#offline-banner.show { display: flex; }
 
 /* ── ON-SCREEN NUMPAD ───────────────────────────────────────── */
 :root { --numpad-h: 236px; }
@@ -1104,11 +1106,6 @@ body.numpad-open #sg-section { padding-bottom: var(--numpad-h); }
   <!-- OFFLINE BANNER (inside app so it overlays the header) -->
   <div id="offline-banner">⚠ Offline — data will sync when connected</div>
 
-  <!-- Paints the home-indicator safe-area strip at the very bottom (standalone
-       PWA) so it's never a bare white/black gap. Colored per-screen to match
-       the tab bar on tab-bar screens, or the app background elsewhere. -->
-  <div id="safe-bottom"></div>
-
   <!-- HEADER -->
   <div id="header">
     <div id="header-tabs">
@@ -1197,13 +1194,22 @@ body.numpad-open #sg-section { padding-bottom: var(--numpad-h); }
           <option value="sample">Sample Date</option>
         </select>
       </div>
-      <div class="header-row">
+      <div class="header-row" id="rv-dates-row">
         <span class="header-label">Start</span>
         <input class="header-input" id="rv-start" type="date">
+        <span class="header-label" style="margin-left:8px">End</span>
+        <input class="header-input" id="rv-end" type="date">
       </div>
       <div class="header-row">
-        <span class="header-label">End</span>
-        <input class="header-input" id="rv-end" type="date">
+        <span class="header-label">Range</span>
+        <select class="header-input" id="rv-preset">
+          <option value="">Custom</option>
+          <option value="today">Today</option>
+          <option value="week">Last week</option>
+          <option value="month">Last month</option>
+          <option value="ytd">Year to date</option>
+          <option value="year">Last year</option>
+        </select>
       </div>
     </div>
   </div>
@@ -1610,6 +1616,7 @@ let state = {
   review: {                     // Review/export screen state
     quarry: '__all__',
     dateType: 'submitted',      // submitted | sample
+    preset: 'today',            // today|week|month|ytd|year|'' (custom)
     start: '',
     end: '',
     loading: false,
@@ -2332,11 +2339,10 @@ function renderSieveSection() {
       <p class="screen-empty-title">No gradations open</p>
       <p class="screen-empty-sub">Tap + below to start one.</p>
     </div>`;
-    // Hide the header fields when there's no active tab.
-    document.getElementById('header-fields').style.visibility = 'hidden';
+    document.body.classList.add('no-active-tab');
     return;
   }
-  document.getElementById('header-fields').style.visibility = '';
+  document.body.classList.remove('no-active-tab');
   const focusInfo = captureFocusInfo(section);
   let html = '';
   const fineSectionMode = getFineSectionMode(tab);
@@ -3348,15 +3354,16 @@ function renderSgSection() {
   const el = document.getElementById('sg-section');
   const tab = getActiveSgTab();
   if (state.sgTabs.length === 0) {
-    // Clear header fields when nothing is open
     renderSgHeader(null);
+    document.body.classList.add('no-active-tab');
     el.innerHTML = `<div class="screen-empty">
       <p class="screen-empty-title">No SG/Absorption tests open</p>
-      <p class="screen-empty-sub">Tap + below to start one. Tests stay saved here while you work in other tabs.</p>
+      <p class="screen-empty-sub">Tap + below to start one.</p>
     </div>`;
     return;
   }
   if (!tab) { state.activeSgTabId = state.sgTabs[0].tabId; return renderSgSection(); }
+  document.body.classList.remove('no-active-tab');
 
   renderSgHeader(tab);
 
@@ -3538,11 +3545,35 @@ function wireReviewHeaderOnce() {
   if (reviewHeaderWired) return;
   reviewHeaderWired = true;
   const r = state.review;
-  const q = document.getElementById('rv-quarry');
-  q.addEventListener('change', e => { r.quarry = e.target.value; });
+  document.getElementById('rv-quarry').addEventListener('change', e => { r.quarry = e.target.value; });
   document.getElementById('rv-datetype').addEventListener('change', e => { r.dateType = e.target.value; });
-  document.getElementById('rv-start').addEventListener('change', e => { r.start = e.target.value; });
-  document.getElementById('rv-end').addEventListener('change', e => { r.end = e.target.value; });
+  document.getElementById('rv-preset').addEventListener('change', e => {
+    r.preset = e.target.value;
+    if (r.preset) { const [s, en] = presetRange(r.preset); r.start = s; r.end = en; }
+    // Reflect into the date inputs immediately.
+    const s = document.getElementById('rv-start'), en = document.getElementById('rv-end');
+    if (s) s.value = r.start; if (en) en.value = r.end;
+  });
+  // Manually editing either date switches to Custom (clears the preset).
+  document.getElementById('rv-start').addEventListener('change', e => {
+    r.start = e.target.value; r.preset = ''; document.getElementById('rv-preset').value = '';
+  });
+  document.getElementById('rv-end').addEventListener('change', e => {
+    r.end = e.target.value; r.preset = ''; document.getElementById('rv-preset').value = '';
+  });
+}
+
+// Compute [start, end] YYYY-MM-DD for a named preset.
+function presetRange(preset) {
+  const now = new Date();
+  const iso = d => d.toISOString().split('T')[0];
+  const today = iso(now);
+  if (preset === 'today') return [today, today];
+  if (preset === 'week') { const s = new Date(now); s.setDate(s.getDate() - 6); return [iso(s), today]; }
+  if (preset === 'month') { const s = new Date(now); s.setMonth(s.getMonth() - 1); return [iso(s), today]; }
+  if (preset === 'ytd') return [iso(new Date(now.getFullYear(), 0, 1)), today];
+  if (preset === 'year') { const s = new Date(now); s.setFullYear(s.getFullYear() - 1); return [iso(s), today]; }
+  return [today, today];
 }
 
 function renderReviewHeader() {
@@ -3552,17 +3583,17 @@ function renderReviewHeader() {
       state.quarries.map(qq => `<option value="${esc(qq)}">${esc(qq)}</option>`).join('');
   }
   const r = state.review;
+  // Default: preset "today" → start/end = today, on first entry.
+  if (!r.start || !r.end) {
+    if (!r.preset) r.preset = 'today';
+    const [ps, pe] = presetRange(r.preset);
+    r.start = ps; r.end = pe;
+  }
   if (q) q.value = r.quarry;
   const dt = document.getElementById('rv-datetype'); if (dt) dt.value = r.dateType;
-  const s = document.getElementById('rv-start'); if (s && !s.value && r.start) s.value = r.start;
-  const e = document.getElementById('rv-end'); if (e && !e.value && r.end) e.value = r.end;
-  // Default the range to the current month the first time in.
-  if (!r.start || !r.end) {
-    const now = new Date();
-    const first = new Date(now.getFullYear(), now.getMonth(), 1);
-    if (!r.start) { r.start = first.toISOString().split('T')[0]; if (s) s.value = r.start; }
-    if (!r.end) { r.end = todayISO(); if (e) e.value = r.end; }
-  }
+  const pr = document.getElementById('rv-preset'); if (pr) pr.value = r.preset;
+  const s = document.getElementById('rv-start'); if (s) s.value = r.start;
+  const e = document.getElementById('rv-end'); if (e) e.value = r.end;
 }
 
 function renderReview() {
@@ -3695,31 +3726,22 @@ function renderReviewGroups(groups) {
           </div>`;
       }
 
-      // SG product table
+      // SG table — one combined block; Sample is a column after Date.
       const SG = [['Time', 'TimeInWater'], ['Abs', 'Absorption'], ['%Abs', 'PercentAbsorption'], ['Bulk SG', 'BulkSpecificGravity'], ['App SG', 'ApparentSpecificGravity']];
       const rows = p.tests.map(t => {
         const f = t._fields;
         const tds = SG.map(([, k]) => `<td>${cell(f[k])}</td>`).join('');
         return `<tr>
           <td class="rv-selcell"><span class="rv-check rv-test-check ${r.selected[t._id] ? 'on' : ''}" data-id="${t._id}"></span></td>
-          <td class="rv-datecell">${fmtDate(f)}</td>${tds}
+          <td class="rv-datecell">${fmtDate(f)}</td>
+          <td class="rv-datecell">${esc(f.Sample || '')}</td>${tds}
           <td class="rv-notescell">${esc(f.Notes || '')}</td></tr>`;
       }).join('');
-      let avgRow = '';
-      if (p.tests.length > 1) {
-        const tds = SG.map(([, k], i) => {
-          const nums = p.tests.map(t => t._fields[k]).filter(v => v !== undefined && v !== null && v !== '').map(Number);
-          if (!nums.length) return '<td></td>';
-          const a = nums.reduce((x, y) => x + y, 0) / nums.length;
-          return `<td>${Number(a.toFixed(i >= 3 ? 3 : 2))}</td>`;
-        }).join('');
-        avgRow = `<tr class="rv-avg"><td></td><td class="rv-datecell">Average</td>${tds}<td></td></tr>`;
-      }
       return `${head}
         <div class="rv-table-wrap">
           <table class="rv-table">
-            <thead><tr><th></th><th>Date</th>${SG.map(s => `<th>${s[0]}</th>`).join('')}<th>Notes</th></tr></thead>
-            <tbody>${rows}${avgRow}</tbody>
+            <thead><tr><th></th><th>Date</th><th>Sample</th>${SG.map(s => `<th>${s[0]}</th>`).join('')}<th>Notes</th></tr></thead>
+            <tbody>${rows}</tbody>
           </table>
         </div>`;
     }).join('')}`).join('');
@@ -3747,9 +3769,9 @@ async function reviewSearch() {
       spGetAll(CONFIG.LISTS.SG_LOG_ID).catch(e => { console.warn('SG fetch failed:', e); return []; }),
     ]);
 
-    // byQuarry[quarry] = { grad: {product: [tests]}, sg: {sample: [tests]} }
+    // byQuarry[quarry] = { grad: {product: [tests]}, sg: [tests] }
     const byQuarry = {};
-    const bucket = (quarry) => (byQuarry[quarry] = byQuarry[quarry] || { grad: {}, sg: {} });
+    const bucket = (quarry) => (byQuarry[quarry] = byQuarry[quarry] || { grad: {}, sg: [] });
 
     (gradRows || []).forEach(row => {
       const f = row.fields || {}; if (!inRange(f) || !quarryOk(f)) return;
@@ -3764,30 +3786,25 @@ async function reviewSearch() {
     (sgRows || []).forEach(row => {
       const f = row.fields || {}; if (!inRange(f) || !quarryOk(f)) return;
       const quarry = f.Quarry || '(no quarry)';
-      const sample = f.Sample || '(no sample)';
-      bucket(quarry).sg[sample] = bucket(quarry).sg[sample] || [];
-      bucket(quarry).sg[sample].push({
+      // All SG tests for a quarry live in ONE block (not split by sample);
+      // the sample is shown as a column instead.
+      bucket(quarry).sg.push({
         _id: 's_' + row.id, _kind: 'sg', _fields: f,
-        _label: sample, _sub: `${f.SampleDate || ''}${f.Technician ? ' · ' + f.Technician : ''}`,
+        _label: f.Sample || '', _sub: `${f.SampleDate || ''}${f.Technician ? ' · ' + f.Technician : ''}`,
       });
     });
 
-    // Build ordered groups: gradation products first, then SG samples, each as
-    // a "product" entry tagged with kind so render/export can branch. Gradation
-    // products also carry the sieve columns actually used (for compact tables)
-    // and the product's spec ranges (for out-of-spec highlighting).
+    // Build ordered groups: gradation products first, then one combined SG
+    // block. Gradation products carry used sieve cols + spec ranges.
     const groups = Object.keys(byQuarry).sort().map(quarry => {
       const g = byQuarry[quarry];
       const gradProducts = Object.keys(g.grad).sort().map(product => {
         const tests = g.grad[product];
-        // Used sieve columns: any column with a value in any of this product's
-        // tests, in canonical largest->smallest order.
         const used = SIEVE_COLUMNS.filter(c =>
           tests.some(t => {
             const v = t._fields[c.key + '_Pct'];
             return v !== undefined && v !== null && v !== '';
           })).slice().sort((a, b) => (b.order || 0) - (a.order || 0));
-        // Spec ranges keyed by column key (from the Products list).
         const specList = reviewLookupSpecs(product, quarry);
         const specByKey = {};
         specList.forEach(s => {
@@ -3796,10 +3813,10 @@ async function reviewSearch() {
         });
         return { kind: 'grad', product, tests, used, specByKey };
       });
-      const sgProducts = Object.keys(g.sg).sort().map(sample => ({
-        kind: 'sg', product: sample, tests: g.sg[sample],
-      }));
-      return { quarry, products: [...gradProducts, ...sgProducts] };
+      const sgBlock = g.sg.length
+        ? [{ kind: 'sg', product: 'Specific Gravity', tests: g.sg }]
+        : [];
+      return { quarry, products: [...gradProducts, ...sgBlock] };
     });
     r.groups = groups;
     r.selected = {};
@@ -3903,25 +3920,19 @@ async function reviewExport() {
       ['Apparent SG', 'ApparentSpecificGravity', 3]];
     sgBlocks.forEach((b, bi) => {
       if (bi > 0) ws.addRow([]);
-      const titleRow = ws.addRow([`${b.quarry} — ${b.product}`]);
+      const titleRow = ws.addRow([`${b.quarry} — Specific Gravity`]);
       titleRow.font = { bold: true, size: 12 };
-      const hRow = ws.addRow(['Date', ...SG.map(s => s[0]), 'Notes']); hRow.font = HEAD_FONT;
+      const hRow = ws.addRow(['Date', 'Sample', ...SG.map(s => s[0]), 'Notes']); hRow.font = HEAD_FONT;
       b.tests.forEach(t => {
         const f = t._fields;
-        ws.addRow([fmtDate(f), ...SG.map(([, k]) => {
+        ws.addRow([fmtDate(f), f.Sample || '', ...SG.map(([, k]) => {
           const v = f[k]; return v === undefined || v === null || v === '' ? '' : Number(v);
         }), f.Notes || '']);
       });
-      if (b.tests.length > 1) {
-        const avg = SG.map(([, k, d]) => {
-          const nums = b.tests.map(t => t._fields[k]).filter(v => v !== undefined && v !== null && v !== '').map(Number);
-          return nums.length ? Number((nums.reduce((a, x) => a + x, 0) / nums.length).toFixed(d)) : '';
-        });
-        const row = ws.addRow(['Average', ...avg, '']); row.font = { bold: true };
-      }
     });
     ws.columns.forEach(col => { col.width = 15; });
     ws.getColumn(1).width = 10;
+    ws.getColumn(2).width = 12;
     ws.lastColumn.width = 26;
   }
 
@@ -3929,8 +3940,10 @@ async function reviewExport() {
   const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const fname = `QC Summary ${r.start} to ${r.end}.xlsx`;
   const file = new File([blob], fname, { type: blob.type });
+  // Share ONLY the file — no title/text, since some iOS targets turn the
+  // title/text into a second (unwanted) plain-text attachment.
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: 'QC Summary' }); return; }
+    try { await navigator.share({ files: [file] }); return; }
     catch (e) { if (e.name === 'AbortError') return; }
   }
   const url = URL.createObjectURL(blob);
