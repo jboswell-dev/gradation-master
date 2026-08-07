@@ -145,7 +145,8 @@ button { cursor: pointer; }
   transition: background .12s, color .12s;
 }
 .htab.active { background: var(--hdr-bg); color: var(--hdr-text); }
-.htab.gear { padding: 8px 12px; margin-left: auto; }
+.htab.gear { padding: 8px 12px; }
+.htab.queue-tab { margin-left: auto; }
 .htab svg { width: 16px; height: 16px; display: block; }
 .htab-count {
   min-width: 18px;
@@ -205,6 +206,8 @@ body.screen-review #review-header-fields { display: grid; }
 /* date/time: iOS centers the value inside the input's own width; making the
    input shrink-to-fit (instead of flex:1 stretch) pins it to the left. */
 #inp-date, #inp-time { flex: 0 1 auto; width: auto; min-width: 0; text-align: left; -webkit-appearance: none; appearance: none; }
+/* Same left-justify treatment for the SG and Review header date inputs. */
+#sg-sampledate, #rv-start, #rv-end { flex: 0 1 auto; width: auto; min-width: 0; text-align: left; -webkit-appearance: none; appearance: none; }
 .header-input option { color: var(--text); background: var(--white); }
 select.header-input { cursor: pointer; }
 /* Narrow screens: natural 2-col flow → quarry+product / type+tech / date+time.
@@ -463,10 +466,27 @@ input[type=number] { -moz-appearance: textfield; }
    bottom safe-area inset, so the tab bar paints down into the home-indicator
    zone while its padding-bottom keeps the tabs/+ above the indicator. In
    Safari the inset is ~0, so it just sits flush. */
+/* Safe-area filler at the physical bottom, behind everything. Height is the
+   bottom inset (0 in Safari; the home-indicator strip in a standalone PWA).
+   Colored to match the tab bar on tab-bar screens so there's no bare gap. */
+#safe-bottom {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  height: env(safe-area-inset-bottom);
+  background: var(--stone);
+  z-index: 0;
+  pointer-events: none;
+}
+body.screen-gradations #safe-bottom,
+body.screen-sg #safe-bottom { background: var(--tab2-bg); }
+
+/* ── TAB BAR ────────────────────────────────────────────────── */
+/* Flush, no extra safe-area padding (that padding showed as a colored strip
+   below the tabs). Any home-indicator strip beneath the app is painted by
+   #safe-bottom (above) so it's never a bare white/black gap. */
 #tabbar {
   background: var(--tab2-bg);
-  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
-  padding-bottom: env(safe-area-inset-bottom);
+  height: var(--tabbar-h);
   display: flex;
   align-items: stretch;
   flex-shrink: 0;
@@ -777,15 +797,18 @@ body.screen-settings #tabbar { display: none; }
   top: 0;
   left: 0;
   right: 0;
-  background: rgba(146, 64, 14, 0.92);
+  background: linear-gradient(180deg, rgba(146,64,14,0.97) 0%, rgba(146,64,14,0.92) 100%);
   color: var(--white);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
   text-align: center;
-  padding: 3px;
+  /* Span from the physical top (under the status bar) down to just above the
+     header tab strip — padding-top clears the status bar; padding-bottom gives
+     it height instead of a thin flat line. */
+  padding: calc(env(safe-area-inset-top) + 6px) 12px 12px;
   z-index: 20;
   display: none;
-  backdrop-filter: blur(2px);
+  box-shadow: 0 2px 10px rgba(0,0,0,.3);
 }
 #offline-banner.show { display: block; }
 
@@ -854,10 +877,24 @@ body.numpad-open #sg-section { padding-bottom: var(--numpad-h); }
 /* ── SG / ABSORPTION (row layout, matches gradation weight-rows) ── */
 #sg-section .weight-label { width: 190px; }
 #sg-section .weight-input { width: 120px; }
-#sg-section .sg-dt { width: 200px; font-family: var(--font-ui); }
-/* Editable auto-calc fields (Time In Water, Immersed Sample Weight) get a
-   subtle tint so it's clear they're computed but overridable. */
-#sg-section .sg-calc-edit { background: color-mix(in srgb, var(--input-bg) 84%, var(--btn-bg) 10%); }
+/* Datetime pickers: match the weight-input box exactly so they don't collapse
+   flat when empty. Native pickers ignore text height, so set an explicit min
+   height and padding equal to a weight-input. */
+#sg-section .sg-dt {
+  width: 200px;
+  font-family: var(--font-ui);
+  min-height: 30px;
+  padding: 5px 8px;
+  text-align: left;
+  -webkit-appearance: none;
+  appearance: none;
+  color: var(--data-val);
+}
+/* On the SG screen the form is short; pinning notes to the bottom made the
+   whole notes/submit/trash block jump upward when the numpad opened. Letting it
+   sit right after the fields (not bottom-pinned) means the numpad simply
+   overlays the bottom of the screen, matching the gradations feel. */
+#sg-section #notes-section { margin-top: 12px; }
 #sg-section .weight-computed { font-size: 15px; font-weight: 600; }
 @media (max-width: 480px) {
   #sg-section .weight-label { width: 150px; }
@@ -976,6 +1013,45 @@ body.numpad-open #sg-section { padding-bottom: var(--numpad-h); }
 .rv-check.on::after { content: '✓'; color: var(--btn-text); font-size: 14px; font-weight: 700; }
 .rv-check.part { background: var(--steel-lt); border-color: var(--steel-lt); }
 .rv-check.part::after { content: '–'; color: #fff; font-size: 15px; font-weight: 800; }
+
+/* Per-product results table */
+.rv-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 2px 0 6px; }
+.rv-table {
+  border-collapse: collapse;
+  font-size: 12px;
+  font-family: var(--font-data);
+  white-space: nowrap;
+  min-width: 100%;
+}
+.rv-table th {
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  color: var(--text-sub);
+  text-align: right;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.rv-table td {
+  text-align: right;
+  padding: 5px 8px;
+  color: var(--data-val);
+  border-bottom: 1px solid var(--border);
+}
+.rv-table th:nth-child(2), .rv-table td.rv-datecell { text-align: left; }
+.rv-table th:last-child, .rv-table td.rv-notescell {
+  text-align: left; white-space: normal; min-width: 90px;
+  font-family: var(--font-ui); color: var(--text-sub); font-size: 11px;
+}
+.rv-selcell { width: 30px; text-align: center !important; padding-left: 2px !important; }
+.rv-selcell .rv-check { width: 20px; height: 20px; }
+.rv-bad { color: var(--fail-red) !important; font-weight: 700; }
+.rv-avg td { font-weight: 700; background: color-mix(in srgb, var(--input-bg) 60%, transparent); }
+.rv-avg .rv-datecell { font-family: var(--font-ui); }
+.rv-spec td { color: var(--text-sub); font-style: italic; }
+.rv-spec .rv-datecell { font-family: var(--font-ui); font-style: normal; font-weight: 700; }
 #queue-body { background: var(--stone); }
 #queue-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -1028,13 +1104,18 @@ body.numpad-open #sg-section { padding-bottom: var(--numpad-h); }
   <!-- OFFLINE BANNER (inside app so it overlays the header) -->
   <div id="offline-banner">⚠ Offline — data will sync when connected</div>
 
+  <!-- Paints the home-indicator safe-area strip at the very bottom (standalone
+       PWA) so it's never a bare white/black gap. Colored per-screen to match
+       the tab bar on tab-bar screens, or the app background elsewhere. -->
+  <div id="safe-bottom"></div>
+
   <!-- HEADER -->
   <div id="header">
     <div id="header-tabs">
       <button class="htab active" data-screen="gradations">Gradations</button>
       <button class="htab" data-screen="sg">SG/Absorption</button>
-      <button class="htab" data-screen="queue">Queue <span class="htab-count" id="queue-tab-count" style="display:none">0</span></button>
       <button class="htab" data-screen="review">Review</button>
+      <button class="htab queue-tab" data-screen="queue">Queue <span class="htab-count" id="queue-tab-count" style="display:none">0</span></button>
       <button class="htab gear" data-screen="settings" title="Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="3"/>
@@ -1295,9 +1376,10 @@ body.numpad-open #sg-section { padding-bottom: var(--numpad-h); }
      that, MSAL's own localStorage token cache lets silent refresh work
      offline until the token actually expires. -->
 <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
-<!-- SheetJS (xlsx) — used by the Review tab to build the Excel summary.
-     Loaded from CDN; export is an online action anyway (it reads SharePoint). -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- ExcelJS — Review tab Excel export. Chosen over SheetJS because the free
+     SheetJS build silently drops cell fills, and we need red-filled out-of-spec
+     cells. Export is an online action (reads SharePoint), so a CDN dep is fine. -->
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
 <script>
 'use strict';
@@ -2245,7 +2327,16 @@ function restoreFocusInfo(info) {
 function renderSieveSection() {
   const tab = getActiveTab();
   const section = document.getElementById('sieve-section');
-  if (!tab) { section.innerHTML = ''; return; }
+  if (!tab) {
+    section.innerHTML = `<div class="screen-empty">
+      <p class="screen-empty-title">No gradations open</p>
+      <p class="screen-empty-sub">Tap + below to start one.</p>
+    </div>`;
+    // Hide the header fields when there's no active tab.
+    document.getElementById('header-fields').style.visibility = 'hidden';
+    return;
+  }
+  document.getElementById('header-fields').style.visibility = '';
   const focusInfo = captureFocusInfo(section);
   let html = '';
   const fineSectionMode = getFineSectionMode(tab);
@@ -2601,13 +2692,20 @@ function renderQueueScreen() {
   }
   empty.style.display = 'none';
   state.queue.forEach(item => {
+    const isSg = item._list === 'sg';
+    const title = isSg
+      ? `Specific Gravity — ${esc(item.Quarry)} — ${esc(item.Sample)}`
+      : `${esc(item.Product)} — ${esc(item.Quarry)}`;
+    const subtitle = isSg
+      ? `${esc(item.Technician)} · ${esc(item.SampleDate)}`
+      : `${esc(item.Technician)} · ${esc(item.SampleDate)} ${esc(item.SampleTime || '')}`;
     const div = document.createElement('div');
     div.className = 'queue-item';
     div.innerHTML = `
       <div class="queue-item-header">
         <div class="queue-item-info">
-          <h3>${esc(item.Product)} — ${esc(item.Quarry)}</h3>
-          <p>${esc(item.Technician)} · ${esc(item.SampleDate)} ${esc(item.SampleTime)}</p>
+          <h3>${title}</h3>
+          <p>${subtitle}</p>
         </div>
         <div class="queue-item-actions">
           <button class="btn-expand">▼ Details</button>
@@ -2615,7 +2713,7 @@ function renderQueueScreen() {
         </div>
       </div>
       <div class="queue-item-detail">
-        ${buildDetailText(item)}
+        ${isSg ? buildSgDetailText(item) : buildDetailText(item)}
       </div>`;
     div.querySelector('.btn-expand').addEventListener('click', (e) => {
       const detail = div.querySelector('.queue-item-detail');
@@ -2633,7 +2731,6 @@ function renderQueueScreen() {
 
 function buildDetailText(item) {
   const lines = [];
-  if (item.ProductID) lines.push(`Product ID: ${esc(item.ProductID)}`);
   if (item.SampleType) lines.push(`Sample Type: ${esc(item.SampleType)}`);
   if (item.CoarseMoisturePct !== null && item.CoarseMoisturePct !== undefined) {
     lines.push(`Coarse Moisture: ${item.CoarseMoisturePct}%`);
@@ -2650,6 +2747,22 @@ function buildDetailText(item) {
     lines.push(`<strong>${type} Sieves</strong>`);
     rows.forEach(c => lines.push(`&nbsp;&nbsp;${esc(c.label)}: ${item[c.key + '_Pct']}%`));
   });
+  if (item.Notes) lines.push(`Notes: ${esc(item.Notes)}`);
+  return lines.join('<br>') || 'No data';
+}
+
+// Detail rows for a queued SG/Absorption test.
+function buildSgDetailText(item) {
+  const rows = [
+    ['Time in Water', item.TimeInWater, ' hrs'],
+    ['Absorption', item.Absorption, ''],
+    ['Percent Absorption', item.PercentAbsorption, '%'],
+    ['Bulk Specific Gravity', item.BulkSpecificGravity, ''],
+    ['Apparent Specific Gravity', item.ApparentSpecificGravity, ''],
+  ];
+  const lines = rows
+    .filter(([, v]) => v !== null && v !== undefined && v !== '')
+    .map(([label, v, suf]) => `${label}: ${v}${suf}`);
   if (item.Notes) lines.push(`Notes: ${esc(item.Notes)}`);
   return lines.join('<br>') || 'No data';
 }
@@ -2683,8 +2796,7 @@ async function doSubmit() {
   // Remove tab
   await deleteTabFromDB(tab.tabId);
   state.tabs = state.tabs.filter(t => t.tabId !== tab.tabId);
-  if (state.tabs.length === 0) await addNewTab();
-  else state.activeTabId = state.tabs[0].tabId;
+  state.activeTabId = state.tabs[0]?.tabId || null;
   renderAll();
 }
 
@@ -2724,7 +2836,7 @@ function rnd(v, d) { return v == null || isNaN(v) ? null : Number(v.toFixed(d));
 
 function buildSgRecord(tab) {
   return {
-    Title: `${tab.sample || 'SG'} — ${tab.quarry} — ${tab.sampleDate}`,
+    Title: `Specific Gravity — ${tab.quarry} — ${tab.sample}`,
     Quarry: tab.quarry || null,
     Sample: tab.sample || null,
     Technician: tab.technician || null,
@@ -3057,7 +3169,8 @@ async function init() {
     );
     state.activeTabId = state.tabs[0].tabId;
   } else {
-    await addNewTab();
+    state.tabs = [];
+    state.activeTabId = null;   // no blank tab — the empty state prompts + 
   }
   // Flush queue if online
   if (state.isOnline && state.queue.length > 0) {
@@ -3274,7 +3387,7 @@ function renderSgSection() {
     <div class="section-label">Measurements</div>
     ${dtrow('Date/Time Into Water', 'sg-intowater', tab.intoWater)}
     ${dtrow('Date/Time Tested', 'sg-tested', tab.tested)}
-    ${wrow('Time in Water (hrs)', 'sg-tiw', fx(tiw, 2), 'sg-calc-edit', tab.timeInWaterManual)}
+    ${wrow('Time in Water (hrs)', 'sg-tiw', tiw == null || isNaN(tiw) ? '' : parseFloat(tiw.toFixed(2)), 'sg-calc-edit', tab.timeInWaterManual)}
     ${wrow('Immersed Basket Wt', 'sg-basket', val(tab.basketWt))}
     ${wrow('Immersed Basket + Sample', 'sg-basketsample', val(tab.basketSampleWt))}
     ${wrow('Immersed Sample Wt', 'sg-immersed', imm == null ? '' : imm, 'sg-calc-edit', tab.immersedWtManual)}
@@ -3335,14 +3448,34 @@ function wireSgHeaderOnce() {
   sgHeaderWired = true;
   const cur = () => getActiveSgTab();
   const save = async (rerender) => { const t = cur(); if (t) { await saveSgTab(t); if (rerender) renderSgSection(); } };
-  document.getElementById('sg-quarry').addEventListener('change', e => { const t = cur(); if (t) { t.quarry = e.target.value; save(false); } });
+  const relabel = (t) => { t.tabLabel = assignSgTabLabel(t); renderSgTabs(); };
+  document.getElementById('sg-quarry').addEventListener('change', e => { const t = cur(); if (t) { t.quarry = e.target.value; relabel(t); save(false); } });
   document.getElementById('sg-sample').addEventListener('change', e => {
     const t = cur(); if (!t) return;
-    t.sample = e.target.value; t.tabLabel = t.sample || 'SG Test';
-    save(false); renderSgTabs();
+    t.sample = e.target.value; save(false);
   });
   document.getElementById('sg-tech').addEventListener('change', e => { const t = cur(); if (t) { t.technician = e.target.value; save(false); } });
-  document.getElementById('sg-sampledate').addEventListener('change', e => { const t = cur(); if (t) { t.sampleDate = e.target.value; save(false); } });
+  document.getElementById('sg-sampledate').addEventListener('change', e => { const t = cur(); if (t) { t.sampleDate = e.target.value; relabel(t); save(false); } });
+}
+
+// SG tab label: "M/D Quar" (first 4 letters of quarry), deduped with -2/-3…
+function sgBaseLabel(t) {
+  let datePart = '';
+  if (t.sampleDate) {
+    const [y, m, d] = t.sampleDate.split('-');
+    if (m && d) datePart = `${parseInt(m)}/${parseInt(d)}`;
+  }
+  const quarryPart = (t.quarry || '').replace(/[^A-Za-z]/g, '').slice(0, 4);
+  const base = [datePart, quarryPart].filter(Boolean).join(' ');
+  return base || 'SG Test';
+}
+function assignSgTabLabel(tab) {
+  const base = sgBaseLabel(tab);
+  const others = state.sgTabs.filter(t => t.tabId !== tab.tabId).map(t => t.tabLabel);
+  const taken = others.filter(l => l === base || l.startsWith(base + ' - '));
+  if (taken.length === 0) return base;
+  const nums = taken.map(l => { const m = l.match(/ - (\d+)$/); return m ? parseInt(m[1]) : 1; });
+  return base + ' - ' + (Math.max(1, ...nums) + 1);
 }
 
 function wireSgBody(tab) {
@@ -3376,6 +3509,30 @@ function wireSgBody(tab) {
 }
 
 // ── REVIEW / EXPORT ───────────────────────────────────────────
+// Synchronous spec lookup (specs are already parsed onto state.products).
+function reviewLookupSpecs(product, quarry) {
+  const prod = state.products.find(p => p.Product === product && p.Quarry === quarry);
+  return prod?.specs || [];
+}
+// True if a %-passing value is outside the [min,max] spec (inclusive range).
+function outOfSpec(val, spec) {
+  if (val === undefined || val === null || val === '') return false;
+  if (!spec) return false;
+  const n = Number(val);
+  if (isNaN(n)) return false;
+  if (spec.min != null && n < spec.min) return true;
+  if (spec.max != null && n > spec.max) return true;
+  return false;
+}
+// Format a spec range like "70–100", "≤10", "≥35", or "" when open.
+function specRange(spec) {
+  if (!spec) return '';
+  const { min, max } = spec;
+  if (min != null && max != null) return `${min}–${max}`;
+  if (max != null) return `≤${max}`;
+  if (min != null) return `≥${min}`;
+  return '';
+}
 let reviewHeaderWired = false;
 function wireReviewHeaderOnce() {
   if (reviewHeaderWired) return;
@@ -3469,23 +3626,102 @@ function allSelected(r) {
 
 function renderReviewGroups(groups) {
   const r = state.review;
+  const fmtDate = f => {
+    const d = f.SampleDate ? String(f.SampleDate).split('T')[0] : '';
+    if (!d) return '';
+    const [y, m, dd] = d.split('-');
+    return (m && dd) ? `${parseInt(m)}/${parseInt(dd)}` : d;
+  };
+  const cell = (v) => (v === undefined || v === null || v === '') ? '' : v;
+
   return groups.map((g, gi) => `
     <div class="rv-quarry-h">${esc(g.quarry)}</div>
     ${g.products.map((p, pi) => {
       const checked = p.tests.every(t => r.selected[t._id]);
       const some = !checked && p.tests.some(t => r.selected[t._id]);
-      return `
-      <div class="rv-prod-h">
-        <span class="rv-check rv-prod-check ${checked ? 'on' : some ? 'part' : ''}" data-g="${gi}" data-p="${pi}"></span>
-        <span class="rv-prod-name">${esc(p.product)}${p.kind === 'sg' ? ' <span class="rv-badge">SG</span>' : ''}</span>
-        <span class="rv-prod-count">${p.tests.length}</span>
-      </div>
-      ${p.tests.map(t => `
-        <div class="rv-test">
-          <span class="rv-check rv-test-check ${r.selected[t._id] ? 'on' : ''}" data-id="${t._id}"></span>
-          <span class="rv-test-main">${esc(t._label)}</span>
-          <span class="rv-test-sub">${esc(t._sub)}</span>
-        </div>`).join('')}`;
+      const head = `
+        <div class="rv-prod-h">
+          <span class="rv-check rv-prod-check ${checked ? 'on' : some ? 'part' : ''}" data-g="${gi}" data-p="${pi}"></span>
+          <span class="rv-prod-name">${esc(p.product)}${p.kind === 'sg' ? ' <span class="rv-badge">SG</span>' : ''}</span>
+          <span class="rv-prod-count">${p.tests.length}</span>
+        </div>`;
+
+      if (p.kind === 'grad') {
+        const used = p.used || [];
+        const colHead = used.map(c => `<th>${esc(c.label)}</th>`).join('');
+        // Per-test rows
+        const rows = p.tests.map(t => {
+          const f = t._fields;
+          const tds = used.map(c => {
+            const v = f[c.key + '_Pct'];
+            const bad = outOfSpec(v, p.specByKey[c.key]);
+            return `<td class="${bad ? 'rv-bad' : ''}">${cell(v)}</td>`;
+          }).join('');
+          return `<tr>
+            <td class="rv-selcell"><span class="rv-check rv-test-check ${r.selected[t._id] ? 'on' : ''}" data-id="${t._id}"></span></td>
+            <td class="rv-datecell">${fmtDate(f)}</td>
+            ${tds}
+            <td class="rv-notescell">${esc(f.Notes || '')}</td>
+          </tr>`;
+        }).join('');
+        // Average row (only if >1 test)
+        let avgRow = '';
+        if (p.tests.length > 1) {
+          const tds = used.map(c => {
+            const nums = p.tests.map(t => t._fields[c.key + '_Pct'])
+              .filter(v => v !== undefined && v !== null && v !== '').map(Number);
+            if (!nums.length) return '<td></td>';
+            const a = nums.reduce((x, y) => x + y, 0) / nums.length;
+            const av = Number(a.toFixed(1));
+            const bad = outOfSpec(av, p.specByKey[c.key]);
+            return `<td class="${bad ? 'rv-bad' : ''}">${av}</td>`;
+          }).join('');
+          avgRow = `<tr class="rv-avg">
+            <td></td><td class="rv-datecell">Average</td>${tds}<td></td></tr>`;
+        }
+        // Spec row
+        const anySpec = used.some(c => specRange(p.specByKey[c.key]));
+        let specRow = '';
+        if (anySpec) {
+          const tds = used.map(c => `<td>${esc(specRange(p.specByKey[c.key]))}</td>`).join('');
+          specRow = `<tr class="rv-spec"><td></td><td class="rv-datecell">Spec</td>${tds}<td></td></tr>`;
+        }
+        return `${head}
+          <div class="rv-table-wrap">
+            <table class="rv-table">
+              <thead><tr><th></th><th>Date</th>${colHead}<th>Notes</th></tr></thead>
+              <tbody>${rows}${avgRow}${specRow}</tbody>
+            </table>
+          </div>`;
+      }
+
+      // SG product table
+      const SG = [['Time', 'TimeInWater'], ['Abs', 'Absorption'], ['%Abs', 'PercentAbsorption'], ['Bulk SG', 'BulkSpecificGravity'], ['App SG', 'ApparentSpecificGravity']];
+      const rows = p.tests.map(t => {
+        const f = t._fields;
+        const tds = SG.map(([, k]) => `<td>${cell(f[k])}</td>`).join('');
+        return `<tr>
+          <td class="rv-selcell"><span class="rv-check rv-test-check ${r.selected[t._id] ? 'on' : ''}" data-id="${t._id}"></span></td>
+          <td class="rv-datecell">${fmtDate(f)}</td>${tds}
+          <td class="rv-notescell">${esc(f.Notes || '')}</td></tr>`;
+      }).join('');
+      let avgRow = '';
+      if (p.tests.length > 1) {
+        const tds = SG.map(([, k], i) => {
+          const nums = p.tests.map(t => t._fields[k]).filter(v => v !== undefined && v !== null && v !== '').map(Number);
+          if (!nums.length) return '<td></td>';
+          const a = nums.reduce((x, y) => x + y, 0) / nums.length;
+          return `<td>${Number(a.toFixed(i >= 3 ? 3 : 2))}</td>`;
+        }).join('');
+        avgRow = `<tr class="rv-avg"><td></td><td class="rv-datecell">Average</td>${tds}<td></td></tr>`;
+      }
+      return `${head}
+        <div class="rv-table-wrap">
+          <table class="rv-table">
+            <thead><tr><th></th><th>Date</th>${SG.map(s => `<th>${s[0]}</th>`).join('')}<th>Notes</th></tr></thead>
+            <tbody>${rows}${avgRow}</tbody>
+          </table>
+        </div>`;
     }).join('')}`).join('');
 }
 
@@ -3537,12 +3773,29 @@ async function reviewSearch() {
     });
 
     // Build ordered groups: gradation products first, then SG samples, each as
-    // a "product" entry tagged with kind so render/export can branch.
+    // a "product" entry tagged with kind so render/export can branch. Gradation
+    // products also carry the sieve columns actually used (for compact tables)
+    // and the product's spec ranges (for out-of-spec highlighting).
     const groups = Object.keys(byQuarry).sort().map(quarry => {
       const g = byQuarry[quarry];
-      const gradProducts = Object.keys(g.grad).sort().map(product => ({
-        kind: 'grad', product, tests: g.grad[product],
-      }));
+      const gradProducts = Object.keys(g.grad).sort().map(product => {
+        const tests = g.grad[product];
+        // Used sieve columns: any column with a value in any of this product's
+        // tests, in canonical largest->smallest order.
+        const used = SIEVE_COLUMNS.filter(c =>
+          tests.some(t => {
+            const v = t._fields[c.key + '_Pct'];
+            return v !== undefined && v !== null && v !== '';
+          })).slice().sort((a, b) => (b.order || 0) - (a.order || 0));
+        // Spec ranges keyed by column key (from the Products list).
+        const specList = reviewLookupSpecs(product, quarry);
+        const specByKey = {};
+        specList.forEach(s => {
+          const col = SIEVE_COLUMNS.find(c => c.label === s.SieveLabel && c.type === s.SieveType);
+          if (col) specByKey[col.key] = { min: s.MinPercent, max: s.MaxPercent };
+        });
+        return { kind: 'grad', product, tests, used, specByKey };
+      });
       const sgProducts = Object.keys(g.sg).sort().map(sample => ({
         kind: 'sg', product: sample, tests: g.sg[sample],
       }));
@@ -3559,94 +3812,122 @@ async function reviewSearch() {
   }
 }
 
-// Build an Excel workbook of the selected tests. Gradations go on one sheet
-// (grouped by product, average row per multi-test product), SG/Absorption on a
-// second sheet (grouped by sample, average row per multi-test sample), then
-// share the workbook.
+// Build an Excel workbook mirroring the Review tab: gradations on one sheet
+// (per-product blocks with Date + used sieves + Notes, an Average row for
+// multi-test products, and a Spec row), SG/Absorption on a second sheet.
+// Out-of-spec cells are filled red with black text. Then share the file.
 async function reviewExport() {
   const r = state.review;
-  if (typeof XLSX === 'undefined') { toast('Excel library still loading — try again', 'warning'); return; }
-  const gradSel = [], sgSel = [];
-  r.groups.forEach(g => g.products.forEach(p => p.tests.forEach(t => {
-    if (!r.selected[t._id]) return;
-    (t._kind === 'sg' ? sgSel : gradSel).push({ quarry: g.quarry, product: p.product, t });
-  })));
-  if (!gradSel.length && !sgSel.length) { toast('Nothing selected', 'warning'); return; }
+  if (typeof ExcelJS === 'undefined') { toast('Excel library still loading — try again', 'warning'); return; }
 
-  const wb = XLSX.utils.book_new();
+  // Collect selected tests, preserving each product's used cols + specs.
+  const gradBlocks = [];   // {quarry, product, used, specByKey, tests:[t...]}
+  const sgBlocks = [];
+  r.groups.forEach(g => g.products.forEach(p => {
+    const sel = p.tests.filter(t => r.selected[t._id]);
+    if (!sel.length) return;
+    if (p.kind === 'grad') gradBlocks.push({ quarry: g.quarry, product: p.product, used: p.used, specByKey: p.specByKey, tests: sel });
+    else sgBlocks.push({ quarry: g.quarry, product: p.product, tests: sel });
+  }));
+  if (!gradBlocks.length && !sgBlocks.length) { toast('Nothing selected', 'warning'); return; }
 
-  // ---- Gradations sheet ----
-  if (gradSel.length) {
-    const usedCols = SIEVE_COLUMNS.filter(c =>
-      gradSel.some(({ t }) => {
-        const v = t._fields[c.key + '_Pct'];
-        return v !== undefined && v !== null && v !== '';
-      }));
-    const aoa = [['Quarry', 'Product', 'Sample Date', 'Technician', ...usedCols.map(c => c.label)]];
-    const byProduct = {};
-    gradSel.forEach(row => { (byProduct[row.product] = byProduct[row.product] || []).push(row); });
-    Object.keys(byProduct).sort().forEach(product => {
-      const rowsP = byProduct[product];
-      rowsP.forEach(({ quarry, t }) => {
+  const wb = new ExcelJS.Workbook();
+  const RED = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFC7CE' } };
+  const RED_FONT = { color: { argb: 'FF9C0006' }, bold: true };
+  const HEAD_FONT = { bold: true };
+  const fmtDate = f => {
+    const d = f.SampleDate ? String(f.SampleDate).split('T')[0] : '';
+    if (!d) return '';
+    const [y, m, dd] = d.split('-');
+    return (m && dd) ? `${parseInt(m)}/${parseInt(dd)}` : d;
+  };
+
+  if (gradBlocks.length) {
+    const ws = wb.addWorksheet('Gradations');
+    gradBlocks.forEach((b, bi) => {
+      if (bi > 0) ws.addRow([]);
+      const titleRow = ws.addRow([`${b.quarry} — ${b.product}`]);
+      titleRow.font = { bold: true, size: 12 };
+      const header = ['Date', ...b.used.map(c => c.label), 'Notes'];
+      const hRow = ws.addRow(header); hRow.font = HEAD_FONT;
+      // Per-test rows
+      b.tests.forEach(t => {
         const f = t._fields;
-        aoa.push([quarry, product, f.SampleDate || '', f.Technician || '',
-          ...usedCols.map(c => {
-            const v = f[c.key + '_Pct'];
-            return v === undefined || v === null || v === '' ? '' : Number(v);
-          })]);
-      });
-      if (rowsP.length > 1) {
-        const avg = usedCols.map(c => {
-          const nums = rowsP.map(({ t }) => t._fields[c.key + '_Pct'])
-            .filter(v => v !== undefined && v !== null && v !== '').map(Number);
-          return nums.length ? Number((nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(1)) : '';
+        const vals = [fmtDate(f), ...b.used.map(c => {
+          const v = f[c.key + '_Pct'];
+          return v === undefined || v === null || v === '' ? '' : Number(v);
+        }), f.Notes || ''];
+        const row = ws.addRow(vals);
+        b.used.forEach((c, i) => {
+          if (outOfSpec(f[c.key + '_Pct'], b.specByKey[c.key])) {
+            const cell = row.getCell(i + 2);
+            cell.fill = RED; cell.font = { color: { argb: 'FF000000' } };
+          }
         });
-        aoa.push(['', `${product} — AVERAGE (${rowsP.length})`, '', '', ...avg]);
+      });
+      // Average row
+      if (b.tests.length > 1) {
+        const avgVals = ['Average'];
+        const avgNums = b.used.map(c => {
+          const nums = b.tests.map(t => t._fields[c.key + '_Pct'])
+            .filter(v => v !== undefined && v !== null && v !== '').map(Number);
+          return nums.length ? Number((nums.reduce((a, x) => a + x, 0) / nums.length).toFixed(1)) : '';
+        });
+        const row = ws.addRow(['Average', ...avgNums, '']);
+        row.font = { bold: true };
+        b.used.forEach((c, i) => {
+          if (outOfSpec(avgNums[i], b.specByKey[c.key])) {
+            const cell = row.getCell(i + 2);
+            cell.fill = RED; cell.font = { color: { argb: 'FF000000' }, bold: true };
+          }
+        });
+      }
+      // Spec row
+      const anySpec = b.used.some(c => specRange(b.specByKey[c.key]));
+      if (anySpec) {
+        const specVals = ['Spec', ...b.used.map(c => specRange(b.specByKey[c.key])), ''];
+        const row = ws.addRow(specVals);
+        row.font = { italic: true };
+        row.getCell(1).font = { bold: true };
       }
     });
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Gradations');
+    ws.columns.forEach(col => { col.width = 11; });
+    ws.getColumn(1).width = 10;
+    ws.lastColumn.width = 26;
   }
 
-  // ---- SG / Absorption sheet ----
-  if (sgSel.length) {
-    const SG_COLS = [
-      ['Time in Water (hrs)', 'TimeInWater', 2],
-      ['Absorption', 'Absorption', 2],
-      ['Percent Absorption', 'PercentAbsorption', 2],
-      ['Bulk SG', 'BulkSpecificGravity', 3],
-      ['Apparent SG', 'ApparentSpecificGravity', 3],
-    ];
-    const aoa = [['Quarry', 'Sample', 'Sample Date', 'Technician', ...SG_COLS.map(c => c[0])]];
-    const bySample = {};
-    sgSel.forEach(row => { (bySample[row.product] = bySample[row.product] || []).push(row); });
-    Object.keys(bySample).sort().forEach(sample => {
-      const rowsP = bySample[sample];
-      rowsP.forEach(({ quarry, t }) => {
+  if (sgBlocks.length) {
+    const ws = wb.addWorksheet('SG-Absorption');
+    const SG = [['Time in Water', 'TimeInWater', 2], ['Absorption', 'Absorption', 2],
+      ['Percent Absorption', 'PercentAbsorption', 2], ['Bulk SG', 'BulkSpecificGravity', 3],
+      ['Apparent SG', 'ApparentSpecificGravity', 3]];
+    sgBlocks.forEach((b, bi) => {
+      if (bi > 0) ws.addRow([]);
+      const titleRow = ws.addRow([`${b.quarry} — ${b.product}`]);
+      titleRow.font = { bold: true, size: 12 };
+      const hRow = ws.addRow(['Date', ...SG.map(s => s[0]), 'Notes']); hRow.font = HEAD_FONT;
+      b.tests.forEach(t => {
         const f = t._fields;
-        aoa.push([quarry, sample, f.SampleDate || '', f.Technician || '',
-          ...SG_COLS.map(([, key]) => {
-            const v = f[key];
-            return v === undefined || v === null || v === '' ? '' : Number(v);
-          })]);
+        ws.addRow([fmtDate(f), ...SG.map(([, k]) => {
+          const v = f[k]; return v === undefined || v === null || v === '' ? '' : Number(v);
+        }), f.Notes || '']);
       });
-      if (rowsP.length > 1) {
-        const avg = SG_COLS.map(([, key, d]) => {
-          const nums = rowsP.map(({ t }) => t._fields[key])
-            .filter(v => v !== undefined && v !== null && v !== '').map(Number);
-          return nums.length ? Number((nums.reduce((a, b) => a + b, 0) / nums.length).toFixed(d)) : '';
+      if (b.tests.length > 1) {
+        const avg = SG.map(([, k, d]) => {
+          const nums = b.tests.map(t => t._fields[k]).filter(v => v !== undefined && v !== null && v !== '').map(Number);
+          return nums.length ? Number((nums.reduce((a, x) => a + x, 0) / nums.length).toFixed(d)) : '';
         });
-        aoa.push(['', `${sample} — AVERAGE (${rowsP.length})`, '', '', ...avg]);
+        const row = ws.addRow(['Average', ...avg, '']); row.font = { bold: true };
       }
     });
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'SG-Absorption');
+    ws.columns.forEach(col => { col.width = 15; });
+    ws.getColumn(1).width = 10;
+    ws.lastColumn.width = 26;
   }
 
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const fname = `QC Summary ${r.start} to ${r.end}.xlsx`;
-  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-  const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-
-  // Prefer the native share sheet (so the user can pick Mail and the file is
-  // attached). Fall back to a plain download where file sharing isn't supported.
   const file = new File([blob], fname, { type: blob.type });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try { await navigator.share({ files: [file], title: 'QC Summary' }); return; }
@@ -3924,6 +4205,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (state.activeScreen === 'sg') {
       const t = createSgTab({ technician: state.user?.displayName || '' });
       state.sgTabs.push(t);
+      t.tabLabel = assignSgTabLabel(t);
       state.activeSgTabId = t.tabId;
       await saveSgTab(t);
       renderAll();
@@ -3986,8 +4268,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showOverlay(null);
     await deleteTabFromDB(tab.tabId);
     state.tabs = state.tabs.filter(t => t.tabId !== tab.tabId);
-    if (state.tabs.length === 0) await addNewTab();
-    else state.activeTabId = state.tabs[0].tabId;
+    state.activeTabId = state.tabs[0]?.tabId || null;
     renderAll();
   });
 
