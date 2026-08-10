@@ -7,17 +7,17 @@
   // iOS standalone PWA fix: viewport-fit=cover reserves the bottom safe-area
   // zone only when launched from the Home Screen, which leaves a white/black
   // bar below the app that the page can't fill (the body rubber-bands back up).
-  // When running standalone, drop viewport-fit=cover so the viewport is the
-  // usable screen with no reserved bottom band. Also switch the status-bar
-  // style to opaque 'default' so the header isn't drawn under the status bar
-  // once cover is gone. In Safari (non-standalone) everything stays as-is.
+  // When running standalone, drop ONLY viewport-fit=cover so the viewport is the
+  // usable screen with no reserved bottom band. We keep the status-bar style as
+  // black-translucent so the app still draws under the top status bar (header
+  // red bleeds under the clock, and the offline banner can cover that strip).
+  // In Safari (non-standalone) everything stays as-is.
   (function () {
     if (window.navigator.standalone) {
+      document.documentElement.classList.add('ios-standalone');
       var vp = document.querySelector('meta[name=viewport]');
       if (vp) vp.setAttribute('content',
         'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
-      var sb = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
-      if (sb) sb.setAttribute('content', 'default');
     }
   })();
 </script>
@@ -133,6 +133,11 @@ button { cursor: pointer; }
   box-shadow: 0 2px 8px rgba(0,0,0,.25);
   z-index: 10;
 }
+/* Standalone strips viewport-fit=cover, so env(safe-area-inset-top) is 0 there
+   even though the app still draws under the status bar (black-translucent).
+   Add a fixed top clearance (~iPad status bar height) so the header tabs sit
+   below the clock/battery instead of under them. */
+html.ios-standalone #header { padding-top: 24px; }
 
 /* ── HEADER TAB STRIP ──────────────────────────────────────────── */
 #header-tabs {
@@ -237,8 +242,11 @@ body.no-active-tab.screen-sg #sg-header-fields { display: none; }
 /* Second row of the Review header (Start/End dates + Range) — slightly shorter
    than the top row, matching the gradation/SG second rows. Tighter vertical
    padding, and the Range select constrained so it doesn't keep the row tall. */
-#review-header-fields .rv-row2 { padding-top: 2px; padding-bottom: 2px; }
-#review-header-fields .rv-row2 .header-input { height: 20px; line-height: 20px; }
+/* Second row of the Review header (Start/End dates + Range) — slightly shorter
+   than the top row, matching the gradation/SG second rows (which are shorter
+   only because their inputs are shorter than the row-1 selects). */
+#review-header-fields .rv-row2 { padding-top: 4px; padding-bottom: 4px; }
+#review-header-fields .rv-row2 .header-input { height: 24px; line-height: 24px; }
 #review-header-fields .rv-row2 select.header-input { -webkit-appearance: none; appearance: none; }
 #rv-dates-row { flex-wrap: nowrap; }
 #rv-dates-row .header-label { flex: 0 0 auto; }
@@ -838,12 +846,15 @@ body.screen-settings #tabbar { display: none; }
   display: none;
   align-items: center;
   justify-content: center;
-  /* Occupy just the status-bar strip. No top safe-area padding — on iPad the
-     status bar sits at the physical top with no extra inset, so a fixed ~28px
-     bar aligns with the time/battery row. */
+  /* Occupy just the status-bar strip. On iPad the status bar sits at the
+     physical top; a fixed ~28px bar aligns with the time/battery row. */
   height: 28px;
   z-index: 100;
 }
+/* In standalone the app draws under the status bar (black-translucent), so the
+   banner starts at the physical top under the clock. Make it tall enough to
+   cover the status-bar strip and push its text just below the clock. */
+html.ios-standalone #offline-banner { height: 52px; padding-top: 24px; box-sizing: border-box; }
 #offline-banner.show { display: flex; }
 
 /* ── ON-SCREEN NUMPAD ───────────────────────────────────────── */
