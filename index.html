@@ -3,6 +3,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<script>
+  // iOS standalone PWA fix: viewport-fit=cover reserves the bottom safe-area
+  // zone only when launched from the Home Screen, which leaves a white/black
+  // bar below the app that the page can't fill (the body rubber-bands back up).
+  // When running standalone, drop viewport-fit=cover so the viewport is the
+  // usable screen with no reserved bottom band. Also switch the status-bar
+  // style to opaque 'default' so the header isn't drawn under the status bar
+  // once cover is gone. In Safari (non-standalone) everything stays as-is.
+  (function () {
+    if (window.navigator.standalone) {
+      var vp = document.querySelector('meta[name=viewport]');
+      if (vp) vp.setAttribute('content',
+        'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+      var sb = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+      if (sb) sb.setAttribute('content', 'default');
+    }
+  })();
+</script>
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -216,6 +234,12 @@ body.no-active-tab.screen-sg #sg-header-fields { display: none; }
    and remove intrinsic padding so all rows match. */
 #review-header-fields .header-input { font-size: clamp(12px, 1.8vw, 14px); line-height: 1.2; }
 #review-header-fields input.header-input { padding: 0; height: 18px; }
+/* Second row of the Review header (Start/End dates + Range) — slightly shorter
+   than the top row, matching the gradation/SG second rows. Tighter vertical
+   padding, and the Range select constrained so it doesn't keep the row tall. */
+#review-header-fields .rv-row2 { padding-top: 2px; padding-bottom: 2px; }
+#review-header-fields .rv-row2 .header-input { height: 20px; line-height: 20px; }
+#review-header-fields .rv-row2 select.header-input { -webkit-appearance: none; appearance: none; }
 #rv-dates-row { flex-wrap: nowrap; }
 #rv-dates-row .header-label { flex: 0 0 auto; }
 #rv-dates-row .header-input { flex: 1 1 0; min-width: 0; }
@@ -1220,13 +1244,13 @@ body.numpad-open #numpad { display: grid; }
           <option value="sample">Sample Date</option>
         </select>
       </div>
-      <div class="header-row" id="rv-dates-row">
+      <div class="header-row rv-row2" id="rv-dates-row">
         <span class="header-label">Start</span>
         <input class="header-input" id="rv-start" type="date">
         <span class="header-label" style="margin-left:8px">End</span>
         <input class="header-input" id="rv-end" type="date">
       </div>
-      <div class="header-row">
+      <div class="header-row rv-row2">
         <span class="header-label">Range</span>
         <select class="header-input" id="rv-preset">
           <option value="">Custom</option>
