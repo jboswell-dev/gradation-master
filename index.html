@@ -81,22 +81,21 @@ body.dark {
 html { height: 100%; background: var(--stone); }
 /* The strip below the app body (home-indicator safe zone in a standalone PWA)
    shows html's background. Paint it the tab-bar color on tab-bar screens so it
-   reads as part of the bar rather than a bare white/black gap. :has() needs
-   iPadOS 16.4+. */
+   reads as part of the bar rather than a bare white/black gap. Works whether or
+   not the body reaches the physical bottom: if it does, this is hidden behind
+   the tab bar; if a strip remains, it's filled in the tab-bar color. :has()
+   needs iPadOS 16.4+; switchScreen()/applyTheme() also set it in JS as a
+   fallback. */
 html:has(body.screen-gradations), html:has(body.screen-sg) { background: var(--tab2-bg); }
 /* position:fixed on body is the reliable iOS scroll-lock — the page itself can
-   never rubber-band because it is not scrollable at all. Height tracks the
-   VISUAL viewport (--vhpx): when the software keyboard opens, the visual
-   viewport shrinks, the body shrinks with it, and the notes field + tab bar
-   sit above the keyboard instead of behind it. In standalone the visual
-   viewport already excludes the home-indicator zone, so the tab bar ends at
-   that boundary and html paints the strip below (see above). */
+   never rubber-band because it is not scrollable at all. height:100% fills the
+   containing block. (The notes-keyboard occasionally overlays instead of
+   pushing content up; that's an accepted trade-off for stable layout.) */
 body {
   position: fixed;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100%;
-  height: var(--vhpx, 100%);
+  height: 100%;
   overflow: hidden;
   background: var(--stone);
   overscroll-behavior: none;
@@ -216,11 +215,14 @@ body.no-active-tab.screen-sg #sg-header-fields { display: none; }
 #inp-date, #inp-time { flex: 0 1 auto; width: auto; min-width: 0; text-align: left; -webkit-appearance: none; appearance: none; }
 /* Same left-justify treatment for the SG and Review header date inputs. */
 #sg-sampledate, #rv-start, #rv-end { flex: 0 1 auto; width: auto; min-width: 0; text-align: left; -webkit-appearance: none; appearance: none; }
-/* Keep the Review start/end row the same height as other header rows: the two
-   date inputs share one row without growing it, and labels don't shrink. */
+/* Keep every Review header row the same height as the gradation header rows.
+   Date inputs otherwise render taller than the selects; pin their line-height
+   and remove intrinsic padding so all rows match. */
+#review-header-fields .header-input { font-size: clamp(12px, 1.8vw, 14px); line-height: 1.2; }
+#review-header-fields input.header-input { padding: 0; height: 18px; }
 #rv-dates-row { flex-wrap: nowrap; }
 #rv-dates-row .header-label { flex: 0 0 auto; }
-#rv-dates-row .header-input { font-size: clamp(12px, 1.8vw, 14px); padding: 0; }
+#rv-dates-row .header-input { flex: 1 1 0; min-width: 0; }
 .header-input option { color: var(--text); background: var(--white); }
 select.header-input { cursor: pointer; }
 /* Narrow screens: natural 2-col flow → quarry+product / type+tech / date+time.
@@ -483,13 +485,15 @@ input[type=number] { -moz-appearance: textfield; }
    bottom inset (0 in Safari; the home-indicator strip in a standalone PWA).
    Colored to match the tab bar on tab-bar screens so there's no bare gap. */
 /* ── TAB BAR ────────────────────────────────────────────────── */
-/* Flush at the bottom of the body (which ends at the visual-viewport boundary,
-   i.e. just above the home indicator in standalone). The strip below is painted
-   by html's background (tab-bar color on tab-bar screens), so there's no gap
-   and no second bar. */
+/* Fills --tabbar-h plus the bottom safe-area inset so it reaches the physical
+   bottom, with padding-bottom pushing the tabs above the home indicator. The
+   background paints the whole thing (incl. the inset), and html paints any
+   strip below as a backstop — so there's no bare gap either way. In Safari the
+   inset is 0, so it's just --tabbar-h. */
 #tabbar {
   background: var(--tab2-bg);
-  height: var(--tabbar-h);
+  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
   display: flex;
   align-items: stretch;
   flex-shrink: 0;
@@ -498,6 +502,7 @@ input[type=number] { -moz-appearance: textfield; }
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
+#tabbar > * { flex-shrink: 0; }
 /* Screens without their own bottom tabs hide the bar entirely. */
 body.screen-queue #tabbar,
 body.screen-review #tabbar,
