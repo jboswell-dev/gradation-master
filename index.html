@@ -80,14 +80,18 @@ body.dark {
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { height: 100%; }
 /* position:fixed on body is the reliable iOS scroll-lock — the page itself can
-   never rubber-band because it is not scrollable at all. height:100% fills the
-   containing block. (The notes-keyboard occasionally overlays instead of
-   pushing content up; that's an accepted trade-off for stable layout.) */
+   never rubber-band because it is not scrollable at all. Height = --vhpx, which
+   is driven from window.innerHeight (see setAppHeight): in a standalone PWA
+   innerHeight is the FULL physical screen height (incl. the home-indicator
+   zone), so the body reaches the true bottom and there's no snap-back gap. The
+   trade-off: innerHeight does NOT shrink for the software keyboard, so the
+   notes keyboard may overlay — an accepted quirk. */
 body {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
   width: 100%;
-  height: 100%;
+  height: var(--vhpx, 100%);
   overflow: hidden;
   background: var(--stone);
   overscroll-behavior: none;
@@ -4108,16 +4112,20 @@ function toast(msg, type = '') {
 
 // ── EVENT BINDINGS ────────────────────────────────────────────
 // ── VIEWPORT HEIGHT DRIVER ──────────────────────────────────
-// Keeps --vhpx equal to the real visible height. Fixes the stale white
-// bar under the tab bar after rotation on iPadOS (where 100vh/100dvh lie).
+// Drives --vhpx (the body height). Uses window.innerHeight, NOT
+// visualViewport.height: in a standalone PWA innerHeight reports the full
+// physical screen (including the home-indicator zone), so the body reaches the
+// true bottom and the tab bar has no gap to rubber-band away from. (Visual
+// viewport excludes that zone, which is what left the white strip.) The
+// trade-off is that innerHeight doesn't shrink when the keyboard opens, so the
+// notes keyboard may overlay — an accepted quirk.
 function setAppHeight() {
-  const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-  document.documentElement.style.setProperty('--vhpx', h + 'px');
+  const h = window.innerHeight || document.documentElement.clientHeight;
+  if (h) document.documentElement.style.setProperty('--vhpx', h + 'px');
 }
 setAppHeight();
 window.addEventListener('resize', setAppHeight);
 window.addEventListener('orientationchange', () => { setTimeout(setAppHeight, 250); setTimeout(setAppHeight, 600); });
-if (window.visualViewport) window.visualViewport.addEventListener('resize', setAppHeight);
 
 document.addEventListener('DOMContentLoaded', () => {
   wireSgHeaderOnce();
