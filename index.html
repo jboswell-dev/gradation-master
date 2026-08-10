@@ -78,21 +78,25 @@ body.dark {
 
 /* ── RESET ──────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { height: 100%; }
-/* position:fixed on body is the reliable iOS scroll-lock — the page itself
-   can never rubber-band because it is not scrollable at all. inset:0 fills the
-   full physical screen (incl. safe areas) in an installed PWA. */
+html { height: 100%; background: var(--stone); }
+/* The strip below the app body (home-indicator safe zone in a standalone PWA)
+   shows html's background. Paint it the tab-bar color on tab-bar screens so it
+   reads as part of the bar rather than a bare white/black gap. :has() needs
+   iPadOS 16.4+. */
+html:has(body.screen-gradations), html:has(body.screen-sg) { background: var(--tab2-bg); }
+/* position:fixed on body is the reliable iOS scroll-lock — the page itself can
+   never rubber-band because it is not scrollable at all. Height tracks the
+   VISUAL viewport (--vhpx): when the software keyboard opens, the visual
+   viewport shrinks, the body shrinks with it, and the notes field + tab bar
+   sit above the keyboard instead of behind it. In standalone the visual
+   viewport already excludes the home-indicator zone, so the tab bar ends at
+   that boundary and html paints the strip below (see above). */
 body {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
   width: 100%;
-  /* No explicit height: position:fixed + inset:0 makes the body fill the
-     initial containing block, which in an installed PWA (viewport-fit=cover)
-     is the FULL physical screen including the home-indicator area. An explicit
-     height (e.g. from visualViewport) would stop short of the bottom safe area
-     and leave an unpainted strip below the tab bar in standalone mode. This
-     also tracks rotation correctly since it never uses vh units. */
-  height: 100%;
+  height: var(--vhpx, 100%);
   overflow: hidden;
   background: var(--stone);
   overscroll-behavior: none;
@@ -212,6 +216,11 @@ body.no-active-tab.screen-sg #sg-header-fields { display: none; }
 #inp-date, #inp-time { flex: 0 1 auto; width: auto; min-width: 0; text-align: left; -webkit-appearance: none; appearance: none; }
 /* Same left-justify treatment for the SG and Review header date inputs. */
 #sg-sampledate, #rv-start, #rv-end { flex: 0 1 auto; width: auto; min-width: 0; text-align: left; -webkit-appearance: none; appearance: none; }
+/* Keep the Review start/end row the same height as other header rows: the two
+   date inputs share one row without growing it, and labels don't shrink. */
+#rv-dates-row { flex-wrap: nowrap; }
+#rv-dates-row .header-label { flex: 0 0 auto; }
+#rv-dates-row .header-input { font-size: clamp(12px, 1.8vw, 14px); padding: 0; }
 .header-input option { color: var(--text); background: var(--white); }
 select.header-input { cursor: pointer; }
 /* Narrow screens: natural 2-col flow → quarry+product / type+tech / date+time.
@@ -474,24 +483,21 @@ input[type=number] { -moz-appearance: textfield; }
    bottom inset (0 in Safari; the home-indicator strip in a standalone PWA).
    Colored to match the tab bar on tab-bar screens so there's no bare gap. */
 /* ── TAB BAR ────────────────────────────────────────────────── */
-/* The bar fills --tabbar-h PLUS the bottom safe-area inset and reaches the
-   physical screen bottom, so there's never a gap or a second strip below it.
-   Its buttons are given exactly --tabbar-h of height (align-items:flex-start +
-   fixed child height), so they sit in the top portion and the inset area below
-   is simply more tab-bar-colored background — no content under the home
-   indicator, no double bar. In Safari the inset is 0, so it's just --tabbar-h. */
+/* Flush at the bottom of the body (which ends at the visual-viewport boundary,
+   i.e. just above the home indicator in standalone). The strip below is painted
+   by html's background (tab-bar color on tab-bar screens), so there's no gap
+   and no second bar. */
 #tabbar {
   background: var(--tab2-bg);
-  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+  height: var(--tabbar-h);
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   flex-shrink: 0;
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
-#tabbar > * { height: var(--tabbar-h); }
 /* Screens without their own bottom tabs hide the bar entirely. */
 body.screen-queue #tabbar,
 body.screen-review #tabbar,
@@ -796,21 +802,18 @@ body.screen-settings #tabbar { display: none; }
   right: 0;
   background: #B45309;
   color: #FFFFFF;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: .2px;
   text-align: center;
   display: none;
   align-items: center;
   justify-content: center;
-  /* Occupy the status-bar strip (date/time/battery zone) plus a little, so the
-     warning sits right where the system indicators are, then a few px below.
-     min-height guarantees it's visible even where the inset is 0 (Safari). */
-  padding-top: env(safe-area-inset-top);
-  min-height: calc(env(safe-area-inset-top) + 22px);
-  padding-bottom: 4px;
+  /* Occupy just the status-bar strip. No top safe-area padding — on iPad the
+     status bar sits at the physical top with no extra inset, so a fixed ~28px
+     bar aligns with the time/battery row. */
+  height: 28px;
   z-index: 100;
-  box-shadow: 0 2px 8px rgba(0,0,0,.35);
 }
 #offline-banner.show { display: flex; }
 
@@ -828,9 +831,9 @@ body.screen-settings #tabbar { display: none; }
   box-shadow: 0 -2px 12px rgba(0,0,0,.35);
 }
 body.numpad-open #numpad { display: grid; }
-/* Make room so the focused row can scroll above the pad */
-body.numpad-open #sieve-section,
-body.numpad-open #sg-section { padding-bottom: var(--numpad-h); }
+/* The numpad is a fixed overlay — it does NOT push page content up. The
+   notes/submit/trash stay put and the pad simply covers the bottom of the
+   screen (matching the old gradations behavior). */
 #numpad button {
   height: 50px;
   border-radius: 8px;
@@ -1032,17 +1035,17 @@ body.numpad-open #sg-section { padding-bottom: var(--numpad-h); }
   text-transform: uppercase;
   letter-spacing: .3px;
   color: var(--text-sub);
-  text-align: right;
+  text-align: center;
   padding: 4px 8px;
   border-bottom: 1px solid var(--border);
 }
 .rv-table td {
-  text-align: right;
+  text-align: center;
   padding: 5px 8px;
   color: var(--data-val);
   border-bottom: 1px solid var(--border);
 }
-.rv-table th:nth-child(2), .rv-table td.rv-datecell { text-align: left; }
+/* Notes column stays left-aligned. */
 .rv-table th:last-child, .rv-table td.rv-notescell {
   text-align: left; white-space: normal; min-width: 90px;
   font-family: var(--font-ui); color: var(--text-sub); font-size: 11px;
@@ -1608,7 +1611,7 @@ const COARSE_SIEVES = SIEVE_DEFS.filter(s => s.type === 'Coarse');
 const FINE_SIEVES   = SIEVE_DEFS.filter(s => s.type === 'Fine');
 
 // SIEVE_COLUMNS: what loadSharePointData() selects and what buildSubmissionRecord() writes.
-const SIEVE_COLUMNS = SIEVE_DEFS.map(s => ({ key: s.key, label: s.label, type: s.type, order: s.order }));
+const SIEVE_COLUMNS = SIEVE_DEFS.map(s => ({ key: s.key, label: s.label, type: s.type, order: s.order, mm: s.mm }));
 
 // ── STATE ─────────────────────────────────────────────────────
 let state = {
@@ -1681,6 +1684,11 @@ function applyTheme(t) {
   // Keep the iOS status-bar/theme color in sync with the header.
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', t['--hdr-bg'] || THEME_DEFAULTS['--hdr-bg']);
+  // Refresh the bottom-strip (html) color for the current screen.
+  const hasTabBar = state.activeScreen === 'gradations' || state.activeScreen === 'sg';
+  const cs = getComputedStyle(document.documentElement);
+  document.documentElement.style.background =
+    hasTabBar ? cs.getPropertyValue('--tab2-bg') : cs.getPropertyValue('--stone');
 }
 
 // Early paint from localStorage mirror so there's no red flash before prefs
@@ -3223,6 +3231,13 @@ function switchScreen(name) {
   // header tab active state
   document.querySelectorAll('.htab').forEach(t =>
     t.classList.toggle('active', t.dataset.screen === name));
+  // Paint the strip below the app (home-indicator zone) the tab-bar color on
+  // tab-bar screens, else the neutral app bg. Done in JS as well as CSS :has()
+  // so it works on iPadOS versions without :has() support.
+  const hasTabBar = (name === 'gradations' || name === 'sg');
+  const cs = getComputedStyle(document.documentElement);
+  document.documentElement.style.background =
+    hasTabBar ? cs.getPropertyValue('--tab2-bg') : cs.getPropertyValue('--stone');
   renderAll();
 }
 
@@ -3456,7 +3471,7 @@ function wireSgHeaderOnce() {
   const cur = () => getActiveSgTab();
   const save = async (rerender) => { const t = cur(); if (t) { await saveSgTab(t); if (rerender) renderSgSection(); } };
   const relabel = (t) => { t.tabLabel = assignSgTabLabel(t); renderSgTabs(); };
-  document.getElementById('sg-quarry').addEventListener('change', e => { const t = cur(); if (t) { t.quarry = e.target.value; relabel(t); save(false); } });
+  document.getElementById('sg-quarry').addEventListener('change', e => { const t = cur(); if (t) { t.quarry = e.target.value; dbPut('prefs', { key: 'lastQuarry', value: t.quarry }); relabel(t); save(false); } });
   document.getElementById('sg-sample').addEventListener('change', e => {
     const t = cur(); if (!t) return;
     t.sample = e.target.value; save(false);
@@ -3661,7 +3676,7 @@ function renderReviewGroups(groups) {
     const d = f.SampleDate ? String(f.SampleDate).split('T')[0] : '';
     if (!d) return '';
     const [y, m, dd] = d.split('-');
-    return (m && dd) ? `${parseInt(m)}/${parseInt(dd)}` : d;
+    return (m && dd && y) ? `${parseInt(m)}/${parseInt(dd)}/${y.slice(2)}` : d;
   };
   const cell = (v) => (v === undefined || v === null || v === '') ? '' : v;
 
@@ -3695,11 +3710,12 @@ function renderReviewGroups(groups) {
             <td class="rv-notescell">${esc(f.Notes || '')}</td>
           </tr>`;
         }).join('');
-        // Average row (only if >1 test)
+        // Average row — of the SELECTED tests only (matches the Excel export).
+        const selTests = p.tests.filter(t => r.selected[t._id]);
         let avgRow = '';
-        if (p.tests.length > 1) {
+        if (selTests.length > 1) {
           const tds = used.map(c => {
-            const nums = p.tests.map(t => t._fields[c.key + '_Pct'])
+            const nums = selTests.map(t => t._fields[c.key + '_Pct'])
               .filter(v => v !== undefined && v !== null && v !== '').map(Number);
             if (!nums.length) return '<td></td>';
             const a = nums.reduce((x, y) => x + y, 0) / nums.length;
@@ -3804,7 +3820,7 @@ async function reviewSearch() {
           tests.some(t => {
             const v = t._fields[c.key + '_Pct'];
             return v !== undefined && v !== null && v !== '';
-          })).slice().sort((a, b) => (b.order || 0) - (a.order || 0));
+          })).slice().sort((a, b) => (b.mm || 0) - (a.mm || 0));
         const specList = reviewLookupSpecs(product, quarry);
         const specByKey = {};
         specList.forEach(s => {
@@ -3856,7 +3872,7 @@ async function reviewExport() {
     const d = f.SampleDate ? String(f.SampleDate).split('T')[0] : '';
     if (!d) return '';
     const [y, m, dd] = d.split('-');
-    return (m && dd) ? `${parseInt(m)}/${parseInt(dd)}` : d;
+    return (m && dd && y) ? `${parseInt(m)}/${parseInt(dd)}/${y.slice(2)}` : d;
   };
 
   if (gradBlocks.length) {
@@ -4216,7 +4232,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // New tab (context depends on the active screen)
   document.getElementById('btn-new-tab').addEventListener('click', async () => {
     if (state.activeScreen === 'sg') {
-      const t = createSgTab({ technician: state.user?.displayName || '' });
+      const lastQ = await dbGet('prefs', 'lastQuarry');
+      const t = createSgTab({
+        technician: state.user?.displayName || '',
+        quarry: (lastQ?.value && state.quarries.includes(lastQ.value)) ? lastQ.value : '',
+      });
       state.sgTabs.push(t);
       t.tabLabel = assignSgTabLabel(t);
       state.activeSgTabId = t.tabId;
