@@ -246,7 +246,9 @@ body.no-active-tab.screen-sg #sg-header-fields { display: none; }
 #review-header-fields .rv-row2 select.header-input { -webkit-appearance: none; appearance: none; }
 #rv-dates-row { flex-wrap: nowrap; }
 #rv-dates-row .header-label { flex: 0 0 auto; }
-#rv-dates-row .header-input { flex: 1 1 0; min-width: 0; }
+/* Match the gradation date fields: size to content and left-justified, not
+   stretched across the row (which pushed the native text toward center). */
+#rv-dates-row .header-input { flex: 0 1 auto; width: auto; min-width: 0; text-align: left; }
 .header-input option { color: var(--text); background: var(--white); }
 select.header-input { cursor: pointer; }
 /* Narrow screens: natural 2-col flow → quarry+product / type+tech / date+time.
@@ -856,40 +858,49 @@ body.screen-settings #tabbar { display: none; }
   z-index: 60;
   display: none;
   grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
+  /* No grid gap — buttons fill their whole cell so there are no dead zones
+     between them (visual spacing comes from each button's transparent border,
+     which is still part of the tap target). A bad touch hits the nearest button
+     instead of nothing. */
+  gap: 0;
   padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
   background: #22252B;
   box-shadow: 0 -2px 12px rgba(0,0,0,.35);
 }
-/* Invisible touch-padding above the pad so a tap that lands slightly above the
-   keypad (or just off a button) still counts as "on the pad" and doesn't
-   dismiss it. It's transparent and only ~18px tall, purely a hit target. */
+/* Invisible touch-padding above the pad so a tap that lands above the keypad
+   (or just off the top row) still counts as "on the pad" and doesn't dismiss
+   it. Transparent, ~40px tall, purely a hit target. */
 #numpad::before {
   content: '';
   position: absolute;
   left: 0; right: 0;
-  top: -18px;
-  height: 18px;
+  top: -40px;
+  height: 40px;
 }
 body.numpad-open #numpad { display: grid; }
 /* The numpad is a fixed overlay — it does NOT push page content up. The
    notes/submit/trash stay put and the pad simply covers the bottom of the
    screen (matching the old gradations behavior). */
 #numpad button {
-  height: 50px;
-  border-radius: 8px;
-  background: #3A3E46;
+  height: 56px;
+  /* Transparent border creates the visual gap between buttons while the border
+     area stays part of the button's hit target (no dead zones). background-clip
+     keeps the fill inside the border so it still looks like a spaced key. */
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: 11px;
+  background-color: #3A3E46;
   color: #FFFFFF;
   font-size: 20px;
   font-weight: 600;
   font-family: var(--font-data);
   -webkit-tap-highlight-color: transparent;
 }
-#numpad button:active { background: #4A4F58; }
-#numpad button.np-fn { background: #2E323A; font-size: 17px; }
-#numpad button.np-fn:active { background: #3E434C; }
-#numpad button.np-enter { background: var(--red); font-family: var(--font-ui); font-size: 16px; }
-#numpad button.np-enter:active { background: var(--red-light); }
+#numpad button:active { background-color: #4A4F58; }
+#numpad button.np-fn { background-color: #2E323A; font-size: 17px; }
+#numpad button.np-fn:active { background-color: #3E434C; }
+#numpad button.np-enter { background-color: var(--red); font-family: var(--font-ui); font-size: 16px; }
+#numpad button.np-enter:active { background-color: var(--red-light); }
 
 /* ── SCROLLBAR STYLING ──────────────────────────────────────── */
 #sieve-section::-webkit-scrollbar { width: 4px; }
