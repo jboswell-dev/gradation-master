@@ -133,11 +133,6 @@ button { cursor: pointer; }
   box-shadow: 0 2px 8px rgba(0,0,0,.25);
   z-index: 10;
 }
-/* Standalone strips viewport-fit=cover, so env(safe-area-inset-top) is 0 there
-   even though the app still draws under the status bar (black-translucent).
-   Add a fixed top clearance (~iPad status bar height) so the header tabs sit
-   below the clock/battery instead of under them. */
-html.ios-standalone #header { padding-top: 24px; }
 
 /* ── HEADER TAB STRIP ──────────────────────────────────────────── */
 #header-tabs {
@@ -168,7 +163,8 @@ html.ios-standalone #header { padding-top: 24px; }
 }
 .htab.active { background: var(--hdr-bg); color: var(--hdr-text); }
 .htab.gear { padding: 8px 12px; }
-.htab.queue-tab { margin-left: auto; }
+/* #conn-status (flex:1) between Review and Queue fills the gap, so Queue no
+   longer needs margin-left:auto to sit on the right. */
 .htab svg { width: 16px; height: 16px; display: block; }
 .htab-count {
   min-width: 18px;
@@ -832,30 +828,25 @@ body.screen-settings #tabbar { display: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ── OFFLINE BANNER ─────────────────────────────────────────── */
-#offline-banner {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  background: #B45309;
-  color: #FFFFFF;
+/* Connection status text centered in the header tab strip, between Review and
+   Queue. White text; amber when offline, subtle green-ish when connected. */
+#conn-status {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: .2px;
-  text-align: center;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  /* Occupy just the status-bar strip. On iPad the status bar sits at the
-     physical top; a fixed ~28px bar aligns with the time/battery row. */
-  height: 28px;
-  z-index: 100;
+  color: #FFFFFF;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
 }
-/* In standalone the app draws under the status bar (black-translucent), so the
-   banner starts at the physical top under the clock. Make it tall enough to
-   cover the status-bar strip and push its text just below the clock. */
-html.ios-standalone #offline-banner { height: 52px; padding-top: 24px; box-sizing: border-box; }
-#offline-banner.show { display: flex; }
+#conn-status .conn-ico { font-size: 13px; line-height: 1; }
+#conn-status.is-offline { color: #FFE0B2; }
+#conn-status.is-online  { color: rgba(255,255,255,.85); }
 
 /* ── ON-SCREEN NUMPAD ───────────────────────────────────────── */
 :root { --numpad-h: 236px; }
@@ -1164,15 +1155,13 @@ body.numpad-open #numpad { display: grid; }
 <!-- MAIN APP -->
 <div id="app">
 
-  <!-- OFFLINE BANNER (inside app so it overlays the header) -->
-  <div id="offline-banner">⚠ Offline — data will sync when connected</div>
-
   <!-- HEADER -->
   <div id="header">
     <div id="header-tabs">
       <button class="htab active" data-screen="gradations">Gradations</button>
       <button class="htab" data-screen="sg">SG/Absorption</button>
       <button class="htab" data-screen="review">Review</button>
+      <div id="conn-status" class="is-online"><span class="conn-ico">✓</span><span class="conn-txt">Connected</span></div>
       <button class="htab queue-tab" data-screen="queue">Queue <span class="htab-count" id="queue-tab-count" style="display:none">0</span></button>
       <button class="htab gear" data-screen="settings" title="Settings">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -3276,6 +3265,16 @@ async function switchTab(tabId) {
 
 // ── SCREEN ROUTER ─────────────────────────────────────────────
 const SCREENS = ['gradations', 'sg', 'queue', 'review', 'settings'];
+// Update the header connection status text (between Review and Queue).
+function setConnStatus(online) {
+  const el = document.getElementById('conn-status');
+  if (!el) return;
+  el.classList.toggle('is-online', !!online);
+  el.classList.toggle('is-offline', !online);
+  el.querySelector('.conn-ico').textContent = online ? '✓' : '⚠';
+  el.querySelector('.conn-txt').textContent = online ? 'Connected' : 'Offline';
+}
+
 function switchScreen(name) {
   if (!SCREENS.includes(name)) name = 'gradations';
   state.activeScreen = name;
@@ -4518,20 +4517,18 @@ document.addEventListener('DOMContentLoaded', () => {
     await saveTab(tab);
   });
 
-  // Online/offline
+  // Online/offline — reflected in the header connection status text.
   window.addEventListener('online', async () => {
     state.isOnline = true;
-    document.getElementById('offline-banner').classList.remove('show');
+    setConnStatus(true);
     const n = await flushQueue();
     if (n > 0) toast(`${n} queued gradation${n > 1 ? 's' : ''} submitted`, 'success');
   });
   window.addEventListener('offline', () => {
     state.isOnline = false;
-    document.getElementById('offline-banner').classList.add('show');
+    setConnStatus(false);
   });
-  if (!navigator.onLine) {
-    document.getElementById('offline-banner').classList.add('show');
-  }
+  setConnStatus(navigator.onLine);
 
   init();
 });
