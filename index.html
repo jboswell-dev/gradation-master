@@ -78,15 +78,7 @@ body.dark {
 
 /* ── RESET ──────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { height: 100%; background: var(--stone); }
-/* The strip below the app body (home-indicator safe zone in a standalone PWA)
-   shows html's background. Paint it the tab-bar color on tab-bar screens so it
-   reads as part of the bar rather than a bare white/black gap. Works whether or
-   not the body reaches the physical bottom: if it does, this is hidden behind
-   the tab bar; if a strip remains, it's filled in the tab-bar color. :has()
-   needs iPadOS 16.4+; switchScreen()/applyTheme() also set it in JS as a
-   fallback. */
-html:has(body.screen-gradations), html:has(body.screen-sg) { background: var(--tab2-bg); }
+html { height: 100%; }
 /* position:fixed on body is the reliable iOS scroll-lock — the page itself can
    never rubber-band because it is not scrollable at all. height:100% fills the
    containing block. (The notes-keyboard occasionally overlays instead of
@@ -490,10 +482,14 @@ input[type=number] { -moz-appearance: textfield; }
    background paints the whole thing (incl. the inset), and html paints any
    strip below as a backstop — so there's no bare gap either way. In Safari the
    inset is 0, so it's just --tabbar-h. */
+/* ── TAB BAR ────────────────────────────────────────────────── */
+/* Flush, exactly --tabbar-h. No safe-area padding — that reserved band painted
+   as an extra colored bar below the tabs. Per the user, we accept the plain
+   space below the app in standalone rather than adding any bar there. */
 #tabbar {
   background: var(--tab2-bg);
-  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
-  padding-bottom: env(safe-area-inset-bottom);
+  height: var(--tabbar-h);
+  padding-bottom: 0;
   display: flex;
   align-items: stretch;
   flex-shrink: 0;
@@ -834,6 +830,16 @@ body.screen-settings #tabbar { display: none; }
   padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
   background: #22252B;
   box-shadow: 0 -2px 12px rgba(0,0,0,.35);
+}
+/* Invisible touch-padding above the pad so a tap that lands slightly above the
+   keypad (or just off a button) still counts as "on the pad" and doesn't
+   dismiss it. It's transparent and only ~18px tall, purely a hit target. */
+#numpad::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  top: -18px;
+  height: 18px;
 }
 body.numpad-open #numpad { display: grid; }
 /* The numpad is a fixed overlay — it does NOT push page content up. The
@@ -1689,11 +1695,6 @@ function applyTheme(t) {
   // Keep the iOS status-bar/theme color in sync with the header.
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', t['--hdr-bg'] || THEME_DEFAULTS['--hdr-bg']);
-  // Refresh the bottom-strip (html) color for the current screen.
-  const hasTabBar = state.activeScreen === 'gradations' || state.activeScreen === 'sg';
-  const cs = getComputedStyle(document.documentElement);
-  document.documentElement.style.background =
-    hasTabBar ? cs.getPropertyValue('--tab2-bg') : cs.getPropertyValue('--stone');
 }
 
 // Early paint from localStorage mirror so there's no red flash before prefs
@@ -3236,13 +3237,6 @@ function switchScreen(name) {
   // header tab active state
   document.querySelectorAll('.htab').forEach(t =>
     t.classList.toggle('active', t.dataset.screen === name));
-  // Paint the strip below the app (home-indicator zone) the tab-bar color on
-  // tab-bar screens, else the neutral app bg. Done in JS as well as CSS :has()
-  // so it works on iPadOS versions without :has() support.
-  const hasTabBar = (name === 'gradations' || name === 'sg');
-  const cs = getComputedStyle(document.documentElement);
-  document.documentElement.style.background =
-    hasTabBar ? cs.getPropertyValue('--tab2-bg') : cs.getPropertyValue('--stone');
   renderAll();
 }
 
@@ -4183,9 +4177,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // pointerdown + preventDefault keeps focus on the input (no blur/flicker)
   numpad.addEventListener('pointerdown', (e) => {
+    // Any touch anywhere on the pad (a button, the gaps between buttons, or the
+    // invisible touch-padding) keeps focus on the input so the pad never closes
+    // from a slightly-off tap. Only button taps do something; non-button taps
+    // just swallow the event.
+    e.preventDefault();
     const btn = e.target.closest('button');
     if (!btn) return;
-    e.preventDefault();
     if (!npInput || !document.contains(npInput)) return;
     const k = btn.dataset.k;
     // Enter/Next/Prev may blur the last field, which hides the numpad. The
