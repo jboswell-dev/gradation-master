@@ -1034,11 +1034,19 @@ body.numpad-open #numpad { display: grid; }
 .rv-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 2px 0 6px; }
 .rv-table {
   border-collapse: collapse;
+  table-layout: fixed;               /* consistent column widths across products */
   font-size: 12px;
   font-family: var(--font-data);
   white-space: nowrap;
-  min-width: 100%;
 }
+/* Fixed column widths so every product's table lines up the same way. Every
+   th/td defaults to the data-column width; the fixed structural columns
+   (select, date, sample, notes) get their own widths below. */
+.rv-table th, .rv-table td { width: 52px; box-sizing: border-box; }
+.rv-table .rv-selcell { width: 30px; }
+.rv-table th:nth-child(2), .rv-table td.rv-datecell:nth-child(2) { width: 62px; }  /* Date */
+.rv-table th:last-child, .rv-table td.rv-notescell { width: 120px; }               /* Notes */
+.rv-table .rv-sample-h, .rv-table td.rv-samplecell { width: 78px; }                /* SG Sample */
 .rv-table th {
   font-family: var(--font-ui);
   font-size: 10px;
@@ -3749,13 +3757,13 @@ function renderReviewGroups(groups) {
         return `<tr>
           <td class="rv-selcell"><span class="rv-check rv-test-check ${r.selected[t._id] ? 'on' : ''}" data-id="${t._id}"></span></td>
           <td class="rv-datecell">${fmtDate(f)}</td>
-          <td class="rv-datecell">${esc(f.Sample || '')}</td>${tds}
+          <td class="rv-samplecell">${esc(f.Sample || '')}</td>${tds}
           <td class="rv-notescell">${esc(f.Notes || '')}</td></tr>`;
       }).join('');
       return `${head}
         <div class="rv-table-wrap">
           <table class="rv-table">
-            <thead><tr><th></th><th>Date</th><th>Sample</th>${SG.map(s => `<th>${s[0]}</th>`).join('')}<th>Notes</th></tr></thead>
+            <thead><tr><th></th><th>Date</th><th class="rv-sample-h">Sample</th>${SG.map(s => `<th>${s[0]}</th>`).join('')}<th>Notes</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
         </div>`;
@@ -3876,12 +3884,17 @@ async function reviewExport() {
 
   if (gradBlocks.length) {
     const ws = wb.addWorksheet('Gradations');
+    const CENTER = { horizontal: 'center' };
     gradBlocks.forEach((b, bi) => {
       if (bi > 0) ws.addRow([]);
       const titleRow = ws.addRow([`${b.quarry} — ${b.product}`]);
       titleRow.font = { bold: true, size: 12 };
       const header = ['Date', ...b.used.map(c => c.label), 'Notes'];
-      const hRow = ws.addRow(header); hRow.font = HEAD_FONT;
+      const nSieve = b.used.length;                    // sieve cols are 2..(1+nSieve)
+      const centerSieveCells = (row) => {
+        for (let i = 0; i < nSieve; i++) row.getCell(i + 2).alignment = CENTER;
+      };
+      const hRow = ws.addRow(header); hRow.font = HEAD_FONT; centerSieveCells(hRow);
       // Per-test rows
       b.tests.forEach(t => {
         const f = t._fields;
@@ -3890,6 +3903,7 @@ async function reviewExport() {
           return v === undefined || v === null || v === '' ? '' : Number(v);
         }), f.Notes || ''];
         const row = ws.addRow(vals);
+        centerSieveCells(row);
         b.used.forEach((c, i) => {
           if (outOfSpec(f[c.key + '_Pct'], b.specByKey[c.key])) {
             const cell = row.getCell(i + 2);
@@ -3907,6 +3921,7 @@ async function reviewExport() {
         });
         const row = ws.addRow(['Average', ...avgNums, '']);
         row.font = { bold: true };
+        centerSieveCells(row);
         b.used.forEach((c, i) => {
           if (outOfSpec(avgNums[i], b.specByKey[c.key])) {
             const cell = row.getCell(i + 2);
@@ -3921,6 +3936,7 @@ async function reviewExport() {
         const row = ws.addRow(specVals);
         row.font = { italic: true };
         row.getCell(1).font = { bold: true };
+        centerSieveCells(row);
       }
     });
     ws.columns.forEach(col => { col.width = 11; });
@@ -3930,19 +3946,26 @@ async function reviewExport() {
 
   if (sgBlocks.length) {
     const ws = wb.addWorksheet('SG-Absorption');
+    const CENTER = { horizontal: 'center' };
     const SG = [['Time in Water', 'TimeInWater', 2], ['Absorption', 'Absorption', 2],
       ['Percent Absorption', 'PercentAbsorption', 2], ['Bulk SG', 'BulkSpecificGravity', 3],
       ['Apparent SG', 'ApparentSpecificGravity', 3]];
+    // Center Sample (col 2) through the last SG value col; leave Date (1) and
+    // Notes (last) at their default (left) alignment.
+    const lastCenter = 2 + SG.length;   // col 2 = Sample, then 5 SG cols → cols 2..7
+    const centerCells = (row) => { for (let c = 2; c <= lastCenter; c++) row.getCell(c).alignment = CENTER; };
     sgBlocks.forEach((b, bi) => {
       if (bi > 0) ws.addRow([]);
       const titleRow = ws.addRow([`${b.quarry} — Specific Gravity`]);
       titleRow.font = { bold: true, size: 12 };
-      const hRow = ws.addRow(['Date', 'Sample', ...SG.map(s => s[0]), 'Notes']); hRow.font = HEAD_FONT;
+      const hRow = ws.addRow(['Date', 'Sample', ...SG.map(s => s[0]), 'Notes']);
+      hRow.font = HEAD_FONT; centerCells(hRow);
       b.tests.forEach(t => {
         const f = t._fields;
-        ws.addRow([fmtDate(f), f.Sample || '', ...SG.map(([, k]) => {
+        const row = ws.addRow([fmtDate(f), f.Sample || '', ...SG.map(([, k]) => {
           const v = f[k]; return v === undefined || v === null || v === '' ? '' : Number(v);
         }), f.Notes || '']);
+        centerCells(row);
       });
     });
     ws.columns.forEach(col => { col.width = 15; });
