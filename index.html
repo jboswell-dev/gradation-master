@@ -633,8 +633,7 @@ body.screen-settings #tabbar { display: none; }
 }
 
 /* ── CUSTOM PRODUCT DIALOG ──────────────────────────────────── */
-#modify-dialog .sieve-picker,
-#custom-dialog .sieve-picker {
+#modify-dialog .sieve-picker {
   max-height: 280px;
   overflow-y: auto;
   border: 1px solid var(--border);
@@ -664,56 +663,10 @@ body.screen-settings #tabbar { display: none; }
 .picker-sieve-row:hover { background: var(--stone); }
 .picker-sieve-row input[type=checkbox] { accent-color: var(--red); width: 16px; height: 16px; }
 .picker-sieve-label { font-family: var(--font-data); font-size: 13px; }
-.section-toggle {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 10px;
-}
-.section-toggle button {
-  flex: 1;
-  padding: 7px;
-  border-radius: var(--radius);
-  font-size: 13px;
-  font-weight: 600;
-  border: 1.5px solid var(--border);
-  color: var(--steel);
-  background: var(--stone);
-  transition: all .15s;
-}
-.section-toggle button.active {
-  background: var(--red);
-  color: var(--white);
-  border-color: var(--red);
-}
-.fine-mode-toggle {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 10px;
-}
-.fine-mode-toggle button {
-  flex: 1;
-  padding: 6px;
-  border-radius: var(--radius);
-  font-size: 12px;
-  font-weight: 600;
-  border: 1.5px solid var(--border);
-  color: var(--steel);
-  background: var(--stone);
-  transition: all .15s;
-}
-.fine-mode-toggle button.active {
-  background: var(--red);
-  color: var(--white);
-  border-color: var(--red);
-}
 .wash-warn {
   margin: 6px 14px 8px; padding: 8px 10px;
   background: #FDF3F3; border: 1px solid var(--fail-red); border-radius: var(--radius);
   font-size: 12.5px; color: var(--fail-red); line-height: 1.4;
-}
-.wash-note {
-  margin: 4px 14px 8px;
-  font-size: 11.5px; color: var(--text-sub); line-height: 1.4;
 }
 .modify-wash { border-top: 1px solid var(--border); padding-top: 10px; margin-bottom: 12px; }
 .modify-wash .mw-row {
@@ -727,6 +680,15 @@ body.screen-settings #tabbar { display: none; }
   padding: 7px 8px; font-size: 14px; color: var(--text);
 }
 .mw-note { font-size: 11.5px; color: var(--text-sub); line-height: 1.4; margin-top: 6px; }
+.mw-note:empty { display: none; }
+/* Shown in place of the dropdown when the wash sieve is derived rather than
+   chosen — it is a fact about the stack, not a decision. */
+.mw-fixed {
+  flex: 1; font-family: var(--font-data); font-size: 14px; color: var(--data-val);
+}
+#mod-name { flex: 1; background: var(--input-bg); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 7px 8px; font-size: 14px; color: var(--text); }
+#mod-name-row { border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 10px; }
 
 /* PER-TEST MODIFICATION BAR -- sits above the sieve tables whenever a
    catalog product is selected. */
@@ -766,16 +728,6 @@ body.screen-settings #tabbar { display: none; }
   background: none; border: none; padding: 10px 4px; margin-right: auto;
 }
 
-.custom-name-input {
-  width: 100%;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 8px 10px;
-  font-size: 14px;
-  margin-bottom: 10px;
-  background: var(--input-bg);
-}
-.custom-name-input:focus { border-color: var(--red); box-shadow: 0 0 0 2px rgba(139,0,0,.1); }
 
 /* ── QUEUE ITEMS (list cards rendered on the Queue screen) ──────── */
 .queue-item {
@@ -1495,35 +1447,14 @@ body.numpad-open #sg-section {
   </div>
 </div>
 
-<!-- Custom Product -->
-<div class="overlay hidden" id="overlay-custom">
-  <div class="dialog" id="custom-dialog">
-    <h2>Custom Product</h2>
-    <input class="custom-name-input" id="custom-name" placeholder="Product name" type="text">
-    <div class="section-toggle">
-      <button data-section="Coarse" class="active">Coarse</button>
-      <button data-section="Fine">Fine</button>
-      <button data-section="Both">Both</button>
-    </div>
-    <div class="fine-mode-toggle" id="fine-mode-row" style="display:none">
-      <button data-mode="Washed" class="active">Washed</button>
-      <button data-mode="DryOnly">Dry Only</button>
-    </div>
-    <div class="sieve-picker" id="sieve-picker"></div>
-    <div class="dialog-buttons">
-      <button class="btn-secondary" id="btn-custom-cancel">Cancel</button>
-      <button class="btn-primary" id="btn-custom-confirm">Confirm</button>
-    </div>
-  </div>
-</div>
-
 <!-- Modify This Test -->
 <div class="overlay hidden" id="overlay-modify">
   <div class="dialog" id="modify-dialog">
-    <h2>Modify this test</h2>
-    <p class="modify-note">Applies to this test only &mdash; the product itself is unchanged and the
-      result is still recorded under it. Anything already entered is kept: unticking a sieve hides it
-      without discarding what is in it, and ticking it again brings the value back.</p>
+    <h2 id="modify-title">Modify this test</h2>
+    <label class="mw-row" id="mod-name-row"><span>Product Name</span>
+      <input type="text" id="mod-name" placeholder="Product name" autocomplete="off"
+             autocorrect="off" autocapitalize="words" spellcheck="false">
+    </label>
     <div class="sieve-picker" id="modify-picker"></div>
     <div class="modify-weights">
       <label><input type="checkbox" id="mod-coarse-moist"> Coarse initial weight (moisture)</label>
@@ -1539,11 +1470,12 @@ body.numpad-open #sg-section {
       </label>
       <label class="mw-row" id="mod-wash-sieve-row"><span>Wash sieve</span>
         <select id="mod-wash-sieve"></select>
+        <span id="mod-wash-sieve-fixed" class="mw-fixed"></span>
       </label>
       <p class="mw-note" id="mod-wash-note"></p>
     </div>
     <div class="dialog-buttons">
-      <button class="btn-reset" id="btn-modify-reset">Reset to product</button>
+      <button class="btn-reset" id="btn-modify-reset">Reset</button>
       <button class="btn-secondary" id="btn-modify-cancel">Cancel</button>
       <button class="btn-primary" id="btn-modify-confirm">Apply</button>
     </div>
@@ -1838,8 +1770,7 @@ let state = {
   token: null,
   isOnline: navigator.onLine,
   pendingProductChange: null,
-  customSection: 'Coarse',
-  customFineMode: 'Washed',
+  modifyMode: 'modify',         // 'modify' | 'create' — which face the shared dialog wears
   // Retained across product switches within a tab session: sieve values the
   // technician has typed, keyed by "Type|Label" (e.g. "Coarse|1 inch"), stored
   // per tab so switching product re-fills any sieve the new product also uses.
@@ -2617,14 +2548,6 @@ function washSievePassing(tab) {
   if (scale === null) return null;
   return round1(washLoss(tab) / base * 100 * scale);
 }
-// Label of the smallest coarse sieve actually entered — the one the pan
-// fraction is measured at.
-function smallestCoarseLabel(tab) {
-  const rows = tab.sieveData.filter(r =>
-    r.sieveType === 'Coarse' && r.sieveLabel !== 'Pan' && r.isTouched);
-  if (!rows.length) return null;
-  return rows.reduce((a, b) => (b.sieveOrder < a.sieveOrder ? b : a)).sieveLabel;
-}
 function hasCoarseSieves(tab) {
   return tab.sieveData.some(r => r.sieveType === 'Coarse');
 }
@@ -2877,7 +2800,13 @@ function renderProductDropdown(tab) {
     opt.textContent = p.Product;
     sel.appendChild(opt);
   });
-  sel.innerHTML += `<option value="__custom__">Custom</option>`;
+  // A native select can only show the SELECTED option's own text, so when a
+  // custom product is active this slot carries its name — that is what puts the
+  // name in the header field instead of the word "Custom".
+  const customOpt = document.createElement('option');
+  customOpt.value = '__custom__';
+  customOpt.textContent = (tab.isCustomProduct && tab.product) ? tab.product : 'Custom';
+  sel.appendChild(customOpt);
   sel.value = tab.isCustomProduct ? '__custom__' : (tab.product || '');
 }
 
@@ -2932,19 +2861,12 @@ function renderSieveSection() {
   // are what stay keyed to the mode.
   const showFine = hasFineSieves(tab);
 
-  // Custom product name edit
-  if (tab.isCustomProduct) {
-    html += `<div class="weight-row">
-      <span class="weight-label">Product Name:</span>
-      <input class="weight-input" id="inp-custom-name" type="text" value="${esc(tab.tabLabel)}" style="width:200px">
-    </div>`;
-  }
-
-  // Per-test modification bar. Catalog products only: a custom product is
-  // already defined sieve-by-sieve in its own dialog, so there is nothing to
-  // deviate from.
-  if (!tab.isCustomProduct && tab.product) {
-    const modded = isModified(tab);
+  // Modification bar. Custom products get it too — it is how their name and
+  // sieve set are edited, now that there is no separate dialog.
+  if (tab.product) {
+    // A custom product is nothing BUT modifications, so the chip would be on
+    // permanently and say nothing.
+    const modded = !tab.isCustomProduct && isModified(tab);
     html += `<div class="modify-bar">
       <button type="button" class="modify-btn" id="btn-modify">Modify test\u2026</button>
       ${modded ? `<span class="modify-chip">MODIFIED</span><span class="modify-sum">${esc(modsSummary(tab))}</span>` : ''}
@@ -3064,26 +2986,6 @@ function renderSieveSection() {
     }
   }
 
-  // How the wash portion is being scaled back to the whole sample. Worth
-  // stating outright: it is the difference between two numbers that otherwise
-  // look identical on screen.
-  if (showWash) {
-    const basis = washBasisOf(tab);
-    let note;
-    if (basis === WASH_WHOLE) {
-      note = 'Portion of the <b>whole sample</b> \u2014 results are already whole-sample, no scaling applied.';
-    } else if (!hasCoarseSieves(tab)) {
-      note = 'No coarse stack, so the fine result is already whole-sample \u2014 no scaling applied.';
-    } else {
-      const frac = coarsePanFraction(tab);
-      note = 'Portion of the <b>coarse pan</b> \u2014 scaled by ' +
-        (frac === null ? 'the smallest coarse sieve once it has values'
-                       : frac + '% passing ' + esc(smallestCoarseLabel(tab) || ''));
-      note += '.';
-    }
-    html += `<div class="wash-note">${note}</div>`;
-  }
-
   // Notes + actions — always show delete, only show submit when product selected.
   // #sieve-content wraps everything above; it flex-grows to fill any leftover
   // vertical space so #notes-section (with Submit/Delete) sits pinned to the
@@ -3111,7 +3013,7 @@ function renderSieveSection() {
   const deleteBtn = document.getElementById('btn-delete');
   if (deleteBtn) deleteBtn.addEventListener('click', () => showOverlay('overlay-delete'));
   const modifyBtn = document.getElementById('btn-modify');
-  if (modifyBtn) modifyBtn.addEventListener('click', openModifyDialog);
+  if (modifyBtn) modifyBtn.addEventListener('click', () => openModifyDialog('modify'));
   bindSieveEvents(tab);
   restoreFocusInfo(focusInfo);
 
@@ -3220,14 +3122,23 @@ function caretToEnd(el) {
 
 function sieveNav(el, mode) {
   const isSieve = el.classList.contains('sieve-input');
-  if (!isSieve) { // weight inputs: Enter just closes out
-    if (mode === 'enter' || mode === 'next') { el.blur(); closeNumpad(); return 'blur'; }
-    return false;
+  let all;
+  if (isSieve) {
+    // Down the column the tech is in — all Cumulative, then all Individual.
+    const { field, type } = el.dataset;
+    all = Array.from(document.querySelectorAll(
+      `.sieve-input[data-field="${field}"][data-type="${type}"]:not(:disabled)`
+    ));
+  } else {
+    // Weight fields — the coarse/fine initial and dry weights, and the whole
+    // SG/Absorption column. Document order is bench order, so the arrows walk
+    // straight down the form. Previously these only ever closed the pad, which
+    // made SG unusable: every field had to be tapped individually.
+    // Native date/time pickers wear .weight-input for styling but must be left
+    // to the OS.
+    all = Array.from(document.querySelectorAll('.weight-input:not(:disabled)'))
+      .filter(x => !/^(date|time|datetime-local|month|week)$/.test(x.type || ''));
   }
-  const { field, type } = el.dataset;
-  const all = Array.from(document.querySelectorAll(
-    `.sieve-input[data-field="${field}"][data-type="${type}"]:not(:disabled)`
-  ));
   const idx = all.indexOf(el);
   const isPan = el.dataset.label === 'Pan';
   const isLast = idx < 0 || idx >= all.length - 1;
@@ -3315,16 +3226,6 @@ function bindSieveEvents(tab) {
   }
 
   // Custom name
-  const customNameEl = document.getElementById('inp-custom-name');
-  if (customNameEl) {
-    customNameEl.addEventListener('change', async (e) => {
-      tab.tabLabel = e.target.value;
-      tab.product = e.target.value;
-      await saveTab(tab);
-      renderTabs();
-    });
-  }
-
   // Submit
   const submitBtn = document.getElementById('btn-submit');
   if (submitBtn) submitBtn.addEventListener('click', () => {
@@ -3619,69 +3520,6 @@ function showResult(success, msg) {
 }
 
 // ── CUSTOM PRODUCT ────────────────────────────────────────────
-function renderCustomPicker() {
-  const picker = document.getElementById('sieve-picker');
-  const section = state.customSection;
-  let html = '';
-  if (section === 'Coarse' || section === 'Both') {
-    html += `<div class="picker-section-label">Coarse Sieves</div>`;
-    COARSE_SIEVES.forEach(s => {
-      html += `<label class="picker-sieve-row">
-        <input type="checkbox" data-label="${esc(s.label)}" data-type="Coarse" data-order="${s.order}">
-        <span class="picker-sieve-label">${s.label}</span>
-      </label>`;
-    });
-  }
-  if (section === 'Fine' || section === 'Both') {
-    html += `<div class="picker-section-label">Fine Sieves</div>`;
-    FINE_SIEVES.forEach(s => {
-      html += `<label class="picker-sieve-row">
-        <input type="checkbox" data-label="${esc(s.label)}" data-type="Fine" data-order="${s.order}">
-        <span class="picker-sieve-label">${s.label}</span>
-      </label>`;
-    });
-  }
-  picker.innerHTML = html;
-}
-
-function confirmCustomProduct() {
-  const name = document.getElementById('custom-name').value.trim();
-  if (!name) { toast('Enter a product name', 'error'); return; }
-  const checked = document.querySelectorAll('#sieve-picker input[type=checkbox]:checked');
-  const tab = getActiveTab();
-  if (!tab) return;
-  // Assign unique tab label
-  tab.tabLabel = assignTabLabel(name);
-  tab.product = name;
-  tab.productId = null; // custom products never carry a ProductID
-  tab.isCustomProduct = true;
-  tab.sieveData = [];
-  checked.forEach(cb => {
-    tab.sieveData.push(createSieveRow(cb.dataset.label, cb.dataset.type, parseInt(cb.dataset.order), null, null));
-  });
-  // Add Pan rows — only for a section that actually has a checked sieve in
-  // it. Basing this on the Coarse/Fine/Both toggle alone (instead of what's
-  // really checked) could add a Pan-only "empty" section, e.g. toggle set
-  // to Both but only Fine sieves actually checked.
-  const hasCheckedCoarse = Array.from(checked).some(cb => cb.dataset.type === 'Coarse');
-  const hasCheckedFine = Array.from(checked).some(cb => cb.dataset.type === 'Fine');
-  if (hasCheckedCoarse) {
-    tab.sieveData.push(createSieveRow('Pan', 'Coarse', 10, null, null));
-  }
-  if (hasCheckedFine) {
-    tab.sieveData.push(createSieveRow('Pan', 'Fine', 200, null, null));
-  }
-  // The dialog's Washed / Dry Only toggle maps straight onto a basis: a washed
-  // custom product with a coarse stack is a coarse-pan split, and without one
-  // the fine stack IS the whole sample.
-  tab.customWashBasis = (hasCheckedFine && state.customFineMode === 'Washed')
-    ? (hasCheckedCoarse ? WASH_PAN : WASH_WHOLE)
-    : WASH_NONE;
-  showOverlay(null);
-  saveTab(tab);
-  renderAll();
-}
-
 // ── MODIFY THIS TEST ─────────────────────────────────────────
 // Every sieve is offered, with the ones already in play ticked. Sieves that
 // belong to the product carry a SPEC chip so it stays obvious which are the
@@ -3695,35 +3533,74 @@ function updateModifyWashUI() {
   const note = document.getElementById('mod-wash-note');
   if (!basisEl || !row || !note) return;
   const basis = basisEl.value;
+  const sel = document.getElementById('mod-wash-sieve');
+  const fixed = document.getElementById('mod-wash-sieve-fixed');
+
   if (basis === WASH_NONE) {
     row.style.display = 'none';
-    note.textContent = 'No wash on this test.';
+    note.textContent = '';
     return;
   }
-  const anyFine = !!document.querySelector('#modify-picker input[data-key^="Fine_"]:checked');
-  row.style.display = anyFine ? 'none' : 'flex';
-  const bits = [];
-  bits.push(anyFine
-    ? 'Wash sieve is the smallest fine sieve ticked above \u2014 derived, not chosen, because ' +
-      'washing over anything coarser leaves the finer screens catching nothing.'
-    : 'No fine sieves ticked, so pick the screen the wash was done over.');
-  bits.push(basis === WASH_WHOLE
-    ? 'Whole sample: the result is already whole-sample and is not scaled.'
-    : 'Coarse pan: the result is scaled by the percent passing the smallest coarse sieve.');
-  note.textContent = bits.join(' ');
+  row.style.display = 'flex';
+
+  // With a fine stack the wash sieve is the smallest sieve in it — a fact about
+  // the stack, not a choice — so show it as text rather than a dropdown that
+  // would be ignored.
+  const fineChecked = Array.from(
+    document.querySelectorAll('#modify-picker input[data-key^="Fine_"]:checked'))
+    .map(cb => SIEVE_BY_KEY[cb.dataset.key])
+    .filter(Boolean);
+  if (fineChecked.length) {
+    const smallest = fineChecked.reduce((a, b) => (b.order < a.order ? b : a));
+    sel.style.display = 'none';
+    fixed.style.display = '';
+    fixed.textContent = smallest.label;
+  } else {
+    sel.style.display = '';
+    fixed.style.display = 'none';
+    fixed.textContent = '';
+  }
+
+  note.textContent = (basis === WASH_WHOLE)
+    ? 'A portion of the entire sample is used in the wash.'
+    : 'A portion of the coarse pan is used in the wash.';
 }
 
-async function openModifyDialog() {
+// One dialog, two faces. Creating a custom product and modifying a catalog one
+// are the same act — pick sieves, say whether there is a wash, say which
+// weights get taken — so they share a dialog rather than drifting apart as two.
+//   mode 'create'  : building a custom product from nothing
+//   mode 'modify'  : adjusting whatever this tab already has
+async function openModifyDialog(mode) {
   const tab = getActiveTab();
-  if (!tab || tab.isCustomProduct || !tab.product) return;
+  if (!tab) return;
+  const creating = (mode === 'create');
+  if (!creating && !tab.product) return;
+  state.modifyMode = creating ? 'create' : 'modify';
 
+  const isCustom = creating || tab.isCustomProduct;
+
+  // Which sieves start ticked, and which of them belong to a product spec row.
+  // A custom product has no spec row, so everything it uses is "added".
   const current = new Set();
-  (tab.sieveData || []).forEach(r => {
-    if (r.sieveLabel === 'Pan') return;
-    const col = SIEVE_COLUMNS.find(c => c.label === r.sieveLabel && c.type === r.sieveType);
-    if (col) current.add(col.key);
-  });
-  const onSpec = specKeySet(await getProductSpecs(tab.product, tab.quarry));
+  let onSpec = new Set();
+  if (!creating) {
+    (tab.sieveData || []).forEach(r => {
+      if (r.sieveLabel === 'Pan') return;
+      const col = SIEVE_COLUMNS.find(c => c.label === r.sieveLabel && c.type === r.sieveType);
+      if (col) current.add(col.key);
+    });
+    if (!tab.isCustomProduct) onSpec = specKeySet(await getProductSpecs(tab.product, tab.quarry));
+  }
+
+  document.getElementById('modify-title').textContent =
+    creating ? 'Create custom product' : 'Modify this test';
+  const nameRow = document.getElementById('mod-name-row');
+  nameRow.style.display = isCustom ? 'flex' : 'none';
+  document.getElementById('mod-name').value = (!creating && tab.isCustomProduct) ? (tab.product || '') : '';
+  // Reset means "back to the product's own definition". A custom product has no
+  // definition to fall back to, so there is nothing for it to do there.
+  document.getElementById('btn-modify-reset').style.display = isCustom ? 'none' : '';
 
   const list = (title, arr) =>
     `<div class="picker-section-label">${title}</div>` +
@@ -3735,17 +3612,17 @@ async function openModifyDialog() {
 
   document.getElementById('modify-picker').innerHTML =
     list('Coarse Sieves', COARSE_SIEVES) + list('Fine Sieves', FINE_SIEVES);
-  document.getElementById('mod-coarse-moist').checked = usesCoarseMoisture(tab);
-  document.getElementById('mod-fine-moist').checked = usesFineMoisture(tab);
+  document.getElementById('mod-coarse-moist').checked = creating ? false : usesCoarseMoisture(tab);
+  document.getElementById('mod-fine-moist').checked   = creating ? false : usesFineMoisture(tab);
 
-  document.getElementById('mod-wash-basis').value = washBasisOf(tab);
+  document.getElementById('mod-wash-basis').value = creating ? WASH_NONE : washBasisOf(tab);
   const opts = arr => arr.map(d =>
     `<option value="${d.key}">${esc(d.label)}</option>`).join('');
   const sieveSel = document.getElementById('mod-wash-sieve');
   sieveSel.innerHTML = '<option value="">(none)</option>' +
     '<optgroup label="Fine">' + opts(FINE_SIEVES) + '</optgroup>' +
     '<optgroup label="Coarse">' + opts(COARSE_SIEVES) + '</optgroup>';
-  sieveSel.value = washSieveKeyOf(tab) || '';
+  sieveSel.value = creating ? '' : (washSieveKeyOf(tab) || '');
   updateModifyWashUI();
 
   showOverlay('overlay-modify');
@@ -3754,18 +3631,32 @@ async function openModifyDialog() {
 async function confirmModify() {
   const tab = getActiveTab();
   if (!tab) return;
-  const onSpec = specKeySet(await getProductSpecs(tab.product, tab.quarry));
+  const creating = (state.modifyMode === 'create');
+  const isCustom = creating || tab.isCustomProduct;
+
   const checked = new Set(Array.from(
     document.querySelectorAll('#modify-picker input[type=checkbox]:checked')
   ).map(cb => cb.dataset.key));
 
-  const m = Object.assign(defaultMods(), modsOf(tab));
+  let name = null;
+  if (isCustom) {
+    name = document.getElementById('mod-name').value.trim();
+    if (!name) { toast('Enter a product name', 'error'); return; }
+    if (!checked.size) { toast('Pick at least one sieve', 'error'); return; }
+  }
+
+  // A custom product has no spec row, so every sieve it uses is an addition and
+  // nothing can be "removed".
+  const onSpec = isCustom ? new Set()
+                          : specKeySet(await getProductSpecs(tab.product, tab.quarry));
+
+  const m = Object.assign(defaultMods(), creating ? defaultMods() : modsOf(tab));
   m.addedSieves   = Array.from(checked).filter(k => !onSpec.has(k));
   m.removedSieves = Array.from(onSpec).filter(k => !checked.has(k));
 
   // A moisture override is only stored when it actually differs from the
   // product default, so a product whose flag changes later still leads.
-  const p = productOf(tab);
+  const p = isCustom ? null : productOf(tab);
   const defC = !!(p && p.UsesCoarseInitialWeight);
   const defF = !!(p && p.UsesFineInitialWeight);
   const wantC = document.getElementById('mod-coarse-moist').checked;
@@ -3776,7 +3667,8 @@ async function confirmModify() {
   // Same rule for the wash: store an override only where it actually differs
   // from the product, so a product row edited later still leads.
   const wantBasis = document.getElementById('mod-wash-basis').value;
-  m.washBasis = (wantBasis === productWashBasis(tab)) ? null : wantBasis;
+  const defBasis = isCustom ? WASH_NONE : productWashBasis(tab);
+  m.washBasis = (wantBasis === defBasis) ? null : wantBasis;
 
   // With a fine stack the wash sieve is derived, so there is nothing to store —
   // keeping a value here would only make the test look modified when it isn't.
@@ -3785,7 +3677,19 @@ async function confirmModify() {
     m.washSieve = null;
   } else {
     const wantSieve = document.getElementById('mod-wash-sieve').value || null;
-    m.washSieve = (wantSieve === productWashSieveKey(tab)) ? null : wantSieve;
+    const defSieve = isCustom ? null : productWashSieveKey(tab);
+    m.washSieve = (wantSieve === defSieve) ? null : wantSieve;
+  }
+
+  if (creating) {
+    tab.retainedValues = Object.assign({}, tab.retainedValues || {}, snapshotEnteredValues(tab));
+    tab.isCustomProduct = true;
+    tab.productId = null;      // custom products never carry a ProductID
+    tab.customWashBasis = '';  // the basis lives in mods like everything else
+  }
+  if (isCustom && name) {
+    tab.product = name;
+    tab.tabLabel = assignTabLabel(name, tab.tabId);
   }
 
   tab.mods = m;
@@ -3802,10 +3706,12 @@ async function resetModify() {
 }
 
 // ── TAB LABEL DEDUP ──────────────────────────────────────────
-function assignTabLabel(baseName) {
-  const existing = state.tabs.map(t => t.tabLabel).filter(l =>
-    l === baseName || l.startsWith(baseName + ' - ')
-  );
+function assignTabLabel(baseName, exceptTabId) {
+  const existing = state.tabs
+    .filter(t => t.tabId !== exceptTabId)   // renaming a tab to its own name isn't a clash
+    .map(t => t.tabLabel).filter(l =>
+      l === baseName || l.startsWith(baseName + ' - ')
+    );
   if (existing.length === 0) return baseName;
   const nums = existing.map(l => {
     if (l === baseName) return 1;
@@ -3857,7 +3763,7 @@ async function selectProduct(tab, productName) {
   // Weight fields are section-level, not per-sieve; keep them across switches
   // too (they're only submitted when relevant to the chosen product).
   tab.notes = tab.notes || '';
-  tab.tabLabel = assignTabLabel(productName);
+  tab.tabLabel = assignTabLabel(productName, tab.tabId);
   await saveTab(tab);
   renderAll();
 }
@@ -4228,6 +4134,11 @@ function renderSgSection() {
       <span class="weight-computed">${value}</span>
     </div>`;
 
+  // Every SG field's change handler re-renders this whole section, which
+  // destroys the element the numpad is pointing at. Without capture/restore the
+  // pad closed after every single entry.
+  const focusInfo = captureFocusInfo(el);
+
   el.innerHTML = `<div id="sieve-content">
     <div class="section-label">Measurements</div>
     ${dtrow('Date/Time Into Water', 'sg-intowater', tab.intoWater)}
@@ -4258,6 +4169,10 @@ function renderSgSection() {
   </div>`;
 
   wireSgBody(tab);
+  // Synchronous with the rebuild on purpose: the focusout queued by removing
+  // the old element resolves on the next tick and must find focus already
+  // restored, or it would treat this as a stray tap and close the pad.
+  restoreFocusInfo(focusInfo);
 }
 
 // Populate the SG header fields (in the red header) and wire them.
@@ -5260,40 +5175,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // Result OK
   document.getElementById('btn-result-ok').addEventListener('click', () => showOverlay(null));
 
-  // Custom dialog
-  document.getElementById('btn-custom-cancel').addEventListener('click', () => {
-    showOverlay(null);
-    renderHeader();
-  });
-  document.getElementById('btn-custom-confirm').addEventListener('click', confirmCustomProduct);
-
   // Modify this test
-  document.getElementById('btn-modify-cancel').addEventListener('click', () => showOverlay(null));
+  document.getElementById('btn-modify-cancel').addEventListener('click', () => {
+    showOverlay(null);
+    // Cancelling out of create means the product dropdown is still sitting on
+    // "Custom" for a product that was never made — put it back.
+    if (state.modifyMode === 'create') renderHeader();
+  });
   document.getElementById('btn-modify-confirm').addEventListener('click', confirmModify);
   document.getElementById('btn-modify-reset').addEventListener('click', resetModify);
   document.getElementById('mod-wash-basis').addEventListener('change', updateModifyWashUI);
   // Delegated: the picker's contents are rebuilt on every open, so the listener
   // has to live on the container rather than the checkboxes.
   document.getElementById('modify-picker').addEventListener('change', updateModifyWashUI);
-
-  document.querySelectorAll('.section-toggle button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.section-toggle button').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.customSection = btn.dataset.section;
-      const fineRow = document.getElementById('fine-mode-row');
-      fineRow.style.display = (state.customSection === 'Fine' || state.customSection === 'Both') ? 'flex' : 'none';
-      renderCustomPicker();
-    });
-  });
-
-  document.querySelectorAll('.fine-mode-toggle button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.fine-mode-toggle button').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      state.customFineMode = btn.dataset.mode;
-    });
-  });
 
   // Header field changes
   document.getElementById('sel-quarry').addEventListener('change', async (e) => {
@@ -5336,7 +5230,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Shared by the direct path and the confirm dialog.
   window.applyProductChange = async (tab, newProduct) => {
     if (newProduct === '__custom__') {
-      openCustomDialog();
+      openModifyDialog('create');
     } else if (newProduct) {
       await selectProduct(tab, newProduct);
     } else {
@@ -5406,20 +5300,6 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-function openCustomDialog() {
-  state.customSection = 'Coarse';
-  state.customFineMode = 'Washed';
-  document.querySelectorAll('.section-toggle button').forEach(b => {
-    b.classList.toggle('active', b.dataset.section === 'Coarse');
-  });
-  document.querySelectorAll('.fine-mode-toggle button').forEach(b => {
-    b.classList.toggle('active', b.dataset.mode === 'Washed');
-  });
-  document.getElementById('fine-mode-row').style.display = 'none';
-  document.getElementById('custom-name').value = '';
-  renderCustomPicker();
-  showOverlay('overlay-custom');
-}
 </script>
 
 <!-- ── ON-SCREEN NUMPAD ─────────────────────────────────────────
