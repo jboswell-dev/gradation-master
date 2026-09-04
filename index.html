@@ -2569,16 +2569,26 @@ function fineBaseWeight(tab) {
 }
 function calcTotalFineWeight(tab) { return fineBaseWeight(tab); }
 
-// Percent passing within the coarse stack only — no scaling, no recursion.
+// One decimal, applied ONCE at the very end of a calculation. Everything
+// upstream carries full precision: percentages used to be rounded on the way
+// out of the coarse stack, again on the way out of the fine stack, and a third
+// time after scaling, which could walk a value off by ~0.05.
+function round1(v) {
+  return (v === null || v === undefined || !isFinite(v)) ? null : Math.round(v * 10) / 10;
+}
+
+// Percent passing within the coarse stack only — UNROUNDED, no scaling, no
+// recursion. Callers round.
 function coarsePctPassing(tab, row) {
   const total = calcTotalWeight(tab.sieveData, 'Coarse');
   if (!total) return null;
   const above = tab.sieveData
     .filter(r => r.sieveType === 'Coarse' && r.sieveOrder >= row.sieveOrder)
     .reduce((sum, r) => sum + (r.individual !== null && !isNaN(r.individual) ? r.individual : 0), 0);
-  return Math.round(((total - above) / total * 100) * 10) / 10;
+  return (total - above) / total * 100;
 }
-// Percent of the whole sample that reached the coarse pan.
+// Percent of the whole sample that reached the coarse pan. Unrounded, so the
+// basis scale it feeds carries full precision.
 function coarsePanFraction(tab) {
   const rows = tab.sieveData.filter(r =>
     r.sieveType === 'Coarse' && r.sieveLabel !== 'Pan' && r.isTouched);
@@ -2605,7 +2615,7 @@ function washSievePassing(tab) {
   if (!base || tab.washedDryWeight == null) return null;
   const scale = basisScale(tab);
   if (scale === null) return null;
-  return Math.round((washLoss(tab) / base * 100 * scale) * 10) / 10;
+  return round1(washLoss(tab) / base * 100 * scale);
 }
 // Label of the smallest coarse sieve actually entered — the one the pan
 // fraction is measured at.
@@ -2656,7 +2666,7 @@ function allSievesTouched(tab, type) {
 function calcPctPassing(tab, row) {
   if (!allSievesTouched(tab, row.sieveType)) return null;
 
-  if (row.sieveType === 'Coarse') return coarsePctPassing(tab, row);
+  if (row.sieveType === 'Coarse') return round1(coarsePctPassing(tab, row));
 
   // Fine. Note the pan is NOT "at or above" any sieve, so it lands in the
   // passing side of every one of them — which is exactly right. A wash rarely
@@ -2668,12 +2678,13 @@ function calcPctPassing(tab, row) {
   const above = tab.sieveData
     .filter(r => r.sieveType === 'Fine' && r.sieveOrder >= row.sieveOrder)
     .reduce((sum, r) => sum + (r.individual !== null && !isNaN(r.individual) ? r.individual : 0), 0);
-  const within = Math.round(((base - above) / base * 100) * 10) / 10;
+  const within = (base - above) / base * 100;
 
-  // Scale from "percent of the portion" up to "percent of the whole sample".
+  // Scale from "percent of the portion" up to "percent of the whole sample",
+  // then round — once, here, on the finished number.
   const scale = basisScale(tab);
   if (scale === null) return null;
-  return scale === 1 ? within : Math.round((within * scale) * 10) / 10;
+  return round1(within * scale);
 }
 function calcMoisture(initialWeight, dryWeight) {
   if (!initialWeight || !dryWeight) return null;
@@ -3210,7 +3221,7 @@ function caretToEnd(el) {
 function sieveNav(el, mode) {
   const isSieve = el.classList.contains('sieve-input');
   if (!isSieve) { // weight inputs: Enter just closes out
-    if (mode === 'enter' || mode === 'next') { el.blur(); return 'blur'; }
+    if (mode === 'enter' || mode === 'next') { el.blur(); closeNumpad(); return 'blur'; }
     return false;
   }
   const { field, type } = el.dataset;
@@ -3226,7 +3237,9 @@ function sieveNav(el, mode) {
     return true;
   }
   // 'enter' / 'next'
-  if (isPan || isLast) { el.blur(); return 'blur'; }
+  // Deliberate close: clearing the class here is what tells the focusout
+  // handler this was intentional and not a stray tap to be undone.
+  if (isPan || isLast) { el.blur(); closeNumpad(); return 'blur'; }
   all[idx + 1].focus({ preventScroll: true });
   caretToEnd(all[idx + 1]);
   return true;
@@ -5020,14 +5033,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.addEventListener('focusin', (e) => {
     if (!isNumpadTarget(e.target)) return;
-    npInput = e.target;
-    document.body.classList.add('numpad-open');
-    // Deferred by a tick: on a touch device the browser sets the caret from the
-    // tap position AFTER focusin fires, so doing this synchronously would just
-    // be overwritten. focusin only fires when a field GAINS focus, which is
-    // exactly the "initial tap" case we want to override.
     const el = e.target;
-    setTimeout(() => { if (document.activeElement === el) caretToEnd(el); }, 0);
+    // Same field regaining focus means the focusout handler is putting it back
+    // after a stray tap — leave the caret exactly where the tech had it.
+    const sameField = (npInput === el);
+    npInput = el;
+    document.body.classList.add('numpad-open');
+    if (!sameField) {
+      // Deferred by a tick: on a touch device the browser sets the caret from
+      // the tap position AFTER focusin fires, so doing this synchronously
+      // would just be overwritten.
+      setTimeout(() => { if (document.activeElement === el) caretToEnd(el); }, 0);
+    }
   });
   document.addEventListener('focusout', (e) => {
     if (!isNumpadTarget(e.target)) return;
@@ -5035,12 +5052,40 @@ document.addEventListener('DOMContentLoaded', () => {
       npDirty.delete(e.target);
       e.target.dispatchEvent(new Event('change', { bubbles: true }));
     }
-    // Defer: if focus lands on another data-entry input, keep the pad open.
+    const from = e.target;
+    // Deferred, because activeElement is briefly null between blur and focus.
     setTimeout(() => {
+      // A deliberate close (the X, Enter past the last field, a screen or tab
+      // switch, a dialog) has already cleared the class. Nothing to decide.
+      if (!document.body.classList.contains('numpad-open')) return;
+
       const ae = document.activeElement;
+
+      // Moved to another numeric field: the pad just retargets.
       if (ae && isNumpadTarget(ae)) { npInput = ae; return; }
-      npInput = null;
-      document.body.classList.remove('numpad-open');
+
+      // Moved to something else genuinely focusable — Notes, a header
+      // dropdown, a real control. The tech has moved on, so the pad goes.
+      if (ae && ae !== document.body && ae !== document.documentElement &&
+          ae.matches && ae.matches('input, select, textarea, button, a, [tabindex]')) {
+        npInput = null;
+        document.body.classList.remove('numpad-open');
+        return;
+      }
+
+      // Focus landed NOWHERE. On iOS a tap on any non-focusable area — a
+      // section heading, the gap between rows, plain background — still blurs
+      // the input, which was closing the pad mid-entry and losing the tech's
+      // place. Removing the old tap-to-dismiss listener didn't fix this
+      // because the browser's own blur was doing it. Put focus back.
+      if (from.isConnected) {
+        // npInput still points at `from`, so the focusin handler sees the same
+        // field and leaves the caret alone rather than jumping it to the end.
+        from.focus({ preventScroll: true });
+      } else {
+        npInput = null;
+        document.body.classList.remove('numpad-open');
+      }
     }, 0);
   });
 
