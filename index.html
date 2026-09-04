@@ -633,6 +633,7 @@ body.screen-settings #tabbar { display: none; }
 }
 
 /* ── CUSTOM PRODUCT DIALOG ──────────────────────────────────── */
+#modify-dialog .sieve-picker,
 #custom-dialog .sieve-picker {
   max-height: 280px;
   overflow-y: auto;
@@ -705,6 +706,66 @@ body.screen-settings #tabbar { display: none; }
   color: var(--white);
   border-color: var(--red);
 }
+.wash-warn {
+  margin: 6px 14px 8px; padding: 8px 10px;
+  background: #FDF3F3; border: 1px solid var(--fail-red); border-radius: var(--radius);
+  font-size: 12.5px; color: var(--fail-red); line-height: 1.4;
+}
+.wash-note {
+  margin: 4px 14px 8px;
+  font-size: 11.5px; color: var(--text-sub); line-height: 1.4;
+}
+.modify-wash { border-top: 1px solid var(--border); padding-top: 10px; margin-bottom: 12px; }
+.modify-wash .mw-row {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 14px; padding: 5px 0;
+}
+.modify-wash .mw-row > span { flex: 0 0 96px; }
+.modify-wash select {
+  flex: 1; background: var(--input-bg);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 7px 8px; font-size: 14px; color: var(--text);
+}
+.mw-note { font-size: 11.5px; color: var(--text-sub); line-height: 1.4; margin-top: 6px; }
+
+/* PER-TEST MODIFICATION BAR -- sits above the sieve tables whenever a
+   catalog product is selected. */
+.modify-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 6px 14px 0;
+}
+.modify-btn {
+  font-size: 12px; font-weight: 600;
+  color: var(--steel); background: var(--white);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 5px 11px;
+}
+.modify-btn:active { background: var(--stone); }
+.modify-chip {
+  font-family: var(--font-data); font-size: 9.5px; font-weight: 600;
+  letter-spacing: .06em;
+  color: var(--white); background: var(--steel);
+  border-radius: 2px; padding: 2px 6px;
+}
+.modify-sum { font-size: 11.5px; color: var(--text-sub); }
+.modify-note {
+  font-size: 12px; color: var(--text-sub);
+  margin: -4px 0 12px; line-height: 1.4;
+}
+.modify-weights {
+  border-top: 1px solid var(--border);
+  padding-top: 10px; margin-bottom: 12px;
+}
+.modify-weights label {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 14px; padding: 5px 0;
+}
+.modify-weights input[type=checkbox] { accent-color: var(--red); width: 16px; height: 16px; }
+.btn-reset {
+  font-size: 13px; font-weight: 600; color: var(--steel);
+  background: none; border: none; padding: 10px 4px; margin-right: auto;
+}
+
 .custom-name-input {
   width: 100%;
   border: 1px solid var(--border);
@@ -851,37 +912,68 @@ body.screen-settings #tabbar { display: none; }
 #conn-status.is-online  { color: rgba(255,255,255,.85); }
 
 /* ── ON-SCREEN NUMPAD ───────────────────────────────────────── */
-:root { --numpad-h: 236px; }
+/* Real height of the pad: a 36px close bar + 4 key rows at 56px + 8px of
+   bottom padding, plus whatever the home-indicator zone claims. Declared here
+   and consumed by the scroll-clearance rules further down. */
+:root { --numpad-h: calc(268px + env(safe-area-inset-bottom, 0px)); }
 #numpad {
   position: fixed;
   left: 0; right: 0; bottom: 0;
   z-index: 60;
   display: none;
+  flex-direction: column;
+  padding: 0 10px calc(8px + env(safe-area-inset-bottom));
+  background: #22252B;
+  box-shadow: 0 -2px 12px rgba(0,0,0,.35);
+}
+/* The invisible 40px hit-shield that used to sit above the pad is gone. It
+   existed only to stop a near-miss tap from dismissing the pad — and nothing
+   dismisses the pad by tapping any more. Left in place it would have swallowed
+   taps on the Submit button, which now sits directly above the pad. */
+body.numpad-open #numpad { display: flex; }
+
+/* Close bar. The X is the deliberate way out, sitting clear of the keys so it
+   can't be hit while typing. */
+#numpad-bar {
+  display: flex; align-items: center; justify-content: flex-end;
+  height: 36px; flex: 0 0 36px;
+}
+#numpad-close {
+  width: 40px; height: 32px;
+  background: none; border: none; padding: 0;
+  color: #C8CCD2; font-size: 18px; line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+}
+#numpad-close:active { color: #FFFFFF; }
+
+#numpad-keys {
+  display: grid;
   grid-template-columns: repeat(4, 1fr);
   /* No grid gap — buttons fill their whole cell so there are no dead zones
      between them (visual spacing comes from each button's transparent border,
      which is still part of the tap target). A bad touch hits the nearest button
      instead of nothing. */
   gap: 0;
-  padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
-  background: #22252B;
-  box-shadow: 0 -2px 12px rgba(0,0,0,.35);
+  padding-bottom: 8px;
 }
-/* Invisible touch-padding above the pad so a tap that lands above the keypad
-   (or just off the top row) still counts as "on the pad" and doesn't dismiss
-   it. Transparent, ~40px tall, purely a hit target. */
-#numpad::before {
-  content: '';
-  position: absolute;
-  left: 0; right: 0;
-  top: -40px;
-  height: 40px;
+
+/* The pad is a fixed overlay and paints over whatever is beneath it, so while
+   it is open the scroll container gets a pad's worth of extra room at the
+   bottom. Two separate jobs:
+     padding-bottom        real scrollable space, so the last sieve row and the
+                           Submit button can actually be scrolled clear of the
+                           pad instead of being permanently stuck under it.
+     scroll-padding-bottom  tells scrollIntoView() that the bottom strip is
+                           unavailable, so focusing a field near the end no
+                           longer parks it behind the keys.
+   #notes-section keeps margin-top:auto, so on a short tab Submit lands exactly
+   on top of the pad rather than beneath it. */
+body.numpad-open #sieve-section,
+body.numpad-open #sg-section {
+  padding-bottom: var(--numpad-h);
+  scroll-padding-bottom: var(--numpad-h);
 }
-body.numpad-open #numpad { display: grid; }
-/* The numpad is a fixed overlay — it does NOT push page content up. The
-   notes/submit/trash stay put and the pad simply covers the bottom of the
-   screen (matching the old gradations behavior). */
-#numpad button {
+#numpad-keys button {
   height: 56px;
   /* Transparent border creates the visual gap between buttons while the border
      area stays part of the button's hit target (no dead zones). background-clip
@@ -896,11 +988,11 @@ body.numpad-open #numpad { display: grid; }
   font-family: var(--font-data);
   -webkit-tap-highlight-color: transparent;
 }
-#numpad button:active { background-color: #4A4F58; }
-#numpad button.np-fn { background-color: #2E323A; font-size: 17px; }
-#numpad button.np-fn:active { background-color: #3E434C; }
-#numpad button.np-enter { background-color: var(--red); font-family: var(--font-ui); font-size: 16px; }
-#numpad button.np-enter:active { background-color: var(--red-light); }
+#numpad-keys button:active { background-color: #4A4F58; }
+#numpad-keys button.np-fn { background-color: #2E323A; font-size: 17px; }
+#numpad-keys button.np-fn:active { background-color: #3E434C; }
+#numpad-keys button.np-enter { background-color: var(--red); font-family: var(--font-ui); font-size: 16px; }
+#numpad-keys button.np-enter:active { background-color: var(--red-light); }
 
 /* ── SCROLLBAR STYLING ──────────────────────────────────────── */
 #sieve-section::-webkit-scrollbar { width: 4px; }
@@ -1088,6 +1180,7 @@ body.numpad-open #numpad { display: grid; }
 .rv-table th:nth-child(2), .rv-table td.rv-datecell:nth-child(2) { width: 62px; }  /* Date */
 .rv-table th:last-child, .rv-table td.rv-notescell { width: 120px; }               /* Notes */
 .rv-table .rv-sample-h, .rv-table td.rv-samplecell { width: 78px; }                /* SG Sample */
+.rv-table .rv-type-h, .rv-table td.rv-typecell { width: 74px; white-space: nowrap; } /* Production / Loadout / Other */
 .rv-table th {
   font-family: var(--font-ui);
   font-size: 10px;
@@ -1424,6 +1517,39 @@ body.numpad-open #numpad { display: grid; }
   </div>
 </div>
 
+<!-- Modify This Test -->
+<div class="overlay hidden" id="overlay-modify">
+  <div class="dialog" id="modify-dialog">
+    <h2>Modify this test</h2>
+    <p class="modify-note">Applies to this test only &mdash; the product itself is unchanged and the
+      result is still recorded under it. Anything already entered is kept: unticking a sieve hides it
+      without discarding what is in it, and ticking it again brings the value back.</p>
+    <div class="sieve-picker" id="modify-picker"></div>
+    <div class="modify-weights">
+      <label><input type="checkbox" id="mod-coarse-moist"> Coarse initial weight (moisture)</label>
+      <label><input type="checkbox" id="mod-fine-moist"> Fine initial weight (moisture)</label>
+    </div>
+    <div class="modify-wash">
+      <label class="mw-row"><span>Wash step</span>
+        <select id="mod-wash-basis">
+          <option value="None">None</option>
+          <option value="Coarse Pan">Portion of the coarse pan</option>
+          <option value="Whole Sample">Portion of the whole sample</option>
+        </select>
+      </label>
+      <label class="mw-row" id="mod-wash-sieve-row"><span>Wash sieve</span>
+        <select id="mod-wash-sieve"></select>
+      </label>
+      <p class="mw-note" id="mod-wash-note"></p>
+    </div>
+    <div class="dialog-buttons">
+      <button class="btn-reset" id="btn-modify-reset">Reset to product</button>
+      <button class="btn-secondary" id="btn-modify-cancel">Cancel</button>
+      <button class="btn-primary" id="btn-modify-confirm">Apply</button>
+    </div>
+  </div>
+</div>
+
 <!-- Result -->
 <div class="overlay hidden" id="overlay-result">
   <div class="dialog">
@@ -1476,7 +1602,19 @@ const CONFIG = {
     //                             Kept only for future Power BI joins, not used
     //                             as a key anywhere in this app.
     //   Active           Yes/No   the "hide product" switch
-    //   FineMode         Choice: None / Washed / DryOnly
+    //   WashBasis        Choice: None / Coarse Pan / Whole Sample
+    //                             Whether this product's test involves a wash, and
+    //                             what the washed portion stands for:
+    //                               Coarse Pan    a portion taken off the coarse pan;
+    //                                             results are scaled by the percent
+    //                                             passing the smallest coarse sieve
+    //                               Whole Sample  a portion split from the whole
+    //                                             sample; no scaling
+    //   WashSieve        Text     Which screen the wash was over. ONLY needed when
+    //                             the product has no fine sieves — with a fine stack
+    //                             it is always the smallest one and this is ignored.
+    //                             Write a key ("Fine_No200") or "Fine|#200"; a bare
+    //                             "#200" resolves to the Fine column.
     //   CoarseMoisture   Yes/No
     //   FineMoisture     Yes/No
     //   DisplayOrder     Number   sort order for the product dropdown
@@ -1583,7 +1721,10 @@ const SIEVE_DEFS = [
   { type:'Coarse', label:'5/16"'  , key:'Coarse_5_16in' , mm:7.938,   order:1175 },
   { type:'Coarse', label:'1/4"'   , key:'Coarse_1_4in'  , mm:6.350,   order:1150 },
   // ----- Coarse numbered sieves -----
-  { type:'Coarse', label:'#3'     , key:'Coarse_No3'    , mm:6.730,   order:1140 },
+  // #3 is Tyler 3 mesh at 6.730mm — LARGER than 1/4" (6.350mm), so its order
+  // must sit above 1/4" (1150) despite being listed down here with the other
+  // numbered sieves. Sorting and the cumulative chain both key off order.
+  { type:'Coarse', label:'#3'     , key:'Coarse_No3'    , mm:6.730,   order:1160 },
   { type:'Coarse', label:'#3\u00bd', key:'Coarse_No3_5' , mm:5.613,   order:1130 },
   { type:'Coarse', label:'#4'     , key:'Coarse_No4'    , mm:4.750,   order:1100 },
   { type:'Coarse', label:'#5'     , key:'Coarse_No5'    , mm:4.000,   order:1075 },
@@ -1939,29 +2080,51 @@ function signOut() {
 // Graph addresses lists by ID. Each returned item has its actual column
 // values nested under `.fields`, not flat on the item itself — callers
 // need to read `item.fields.ColumnName`, not `item.ColumnName`.
-async function spGetAll(listId, selectFields = []) {
+async function spGetAll(listId, selectFields = [], filter = '') {
   // Follows @odata.nextLink so lists over the default page size still come
   // back complete. Products is one row per product (small — a few dozen
-  // rows); Master Log grows one row per submitted test, so this keeps
-  // working correctly as that list grows over time.
+  // rows); Master Log grows one row per submitted test.
+  //
+  // `filter` is an OData $filter applied SERVER-side. Review used to read the
+  // entire master log — ~37 sequential pages dragging back every sieve column —
+  // and then throw most of it away client-side. Filtering on the date range
+  // turns that into one or two requests.
+  //
+  // Requires SampleDate (and Created, for the Submitted date type) to be
+  // indexed on the list, hence the Prefer header. If the filtered request is
+  // rejected anyway, we retry unfiltered so Review degrades to its old
+  // behaviour rather than breaking.
   await ensureFreshToken();
   if (!state.token) return null; // Demo mode
   const expand = selectFields.length ? `fields($select=${selectFields.join(',')})` : 'fields';
-  let url = `https://graph.microsoft.com/v1.0/sites/${CONFIG.SITE_ID}/lists/${listId}/items?$expand=${expand}&$top=200`;
-  let results = [];
-  while (url) {
-    const res = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${state.token}`,
-        'Accept': 'application/json',
-      }
-    });
-    if (!res.ok) throw new Error(`Graph GET failed: ${res.status}`);
-    const data = await res.json();
-    results = results.concat(data.value || []);
-    url = data['@odata.nextLink'] || null;
+  const base = `https://graph.microsoft.com/v1.0/sites/${CONFIG.SITE_ID}/lists/${listId}/items?$expand=${expand}&$top=2000`;
+
+  async function run(withFilter) {
+    let url = base + (withFilter ? `&$filter=${encodeURIComponent(withFilter)}` : '');
+    let results = [];
+    while (url) {
+      const res = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${state.token}`,
+          'Accept': 'application/json',
+          'Prefer': 'HonorNonIndexedQueriesWarningMayFailRandomly',
+        }
+      });
+      if (!res.ok) throw new Error(`Graph GET failed: ${res.status}`);
+      const data = await res.json();
+      results = results.concat(data.value || []);
+      url = data['@odata.nextLink'] || null;
+    }
+    return results;
   }
-  return results;
+
+  if (!filter) return run('');
+  try {
+    return await run(filter);
+  } catch (e) {
+    console.warn('Filtered query rejected, falling back to a full read:', e);
+    return run('');
+  }
 }
 async function spPost(listId, fields) {
   await ensureFreshToken();
@@ -2036,12 +2199,25 @@ function deriveProducts(rows) {
       Product: r.Product,
       Quarry: r.Quarry,
       ProductID: r.ProductID,
-      FineSectionMode: r.FineMode,
+      WashBasis: r.WashBasis,
+      WashSieve: r.WashSieve,
       DisplayOrder: r.DisplayOrder,
       UsesCoarseInitialWeight: !!r.CoarseMoisture,
       UsesFineInitialWeight: !!r.FineMoisture,
       specs: buildSpecsFromRow(r),
     }));
+}
+
+// ── LOCAL DATE HELPER ─────────────────────────────────────────
+// Every YYYY-MM-DD the app generates must come from here. toISOString()
+// formats in UTC, so after ~7pm Central it returns TOMORROW's date — which
+// silently defaulted new tabs, new SG tests, and Review presets to the wrong
+// day. Nothing else in the app converts timezones, so local is the only
+// consistent answer.
+function localISODate(d) {
+  const x = d || new Date();
+  const p = n => (n < 10 ? '0' : '') + n;
+  return x.getFullYear() + '-' + p(x.getMonth() + 1) + '-' + p(x.getDate());
 }
 
 // ── TAB MANAGEMENT ────────────────────────────────────────────
@@ -2053,13 +2229,14 @@ function createTab(defaults = {}) {
     product: defaults.product || '',
     productId: defaults.productId || null,
     isCustomProduct: defaults.isCustomProduct || false,
-    customFineSectionMode: defaults.customFineSectionMode || '',
+    customWashBasis: defaults.customWashBasis || '',
     sampleType: defaults.sampleType || 'Production',
     technician: defaults.technician || (state.user?.displayName || ''),
-    sampleDate: defaults.sampleDate || new Date().toISOString().split('T')[0],
+    sampleDate: defaults.sampleDate || localISODate(),
     sampleTime: defaults.sampleTime || new Date().toTimeString().slice(0,5),
     notes: defaults.notes || '',
     sieveData: [],
+    mods: defaults.mods || defaultMods(),           // one-off changes to the catalog product
     retainedValues: defaults.retainedValues || {},  // entered values kept across product switches
     initialWeight: null,
     fineInitialWeight: null,
@@ -2067,6 +2244,130 @@ function createTab(defaults = {}) {
     washedDryWeight: null,
     lastModified: new Date().toISOString(),
   };
+}
+
+// -- PER-TEST MODIFICATIONS ------------------------------------
+// A one-off change to a catalog product: an extra sieve, a sieve skipped, a
+// moisture weight this product does not normally take. The test is still
+// submitted under the real product with IsCustomProduct = false -- an added
+// sieve simply fills its own column, a skipped one is left blank. Nothing about
+// the product row in SharePoint changes.
+//
+// Sieves are tracked by SIEVE_DEFS key, not label: label alone is ambiguous
+// because the same one appears in both the Coarse and Fine tables.
+function defaultMods() {
+  return {
+    addedSieves: [],       // keys not on the product's spec row
+    removedSieves: [],     // keys on the spec row that this test skipped
+    coarseMoisture: null,  // null = follow the product; true/false = override
+    fineMoisture: null,
+    washBasis: null,       // null = follow the product; else None/Whole Sample/Coarse Pan
+    washSieve: null,       // null = follow the product; only used with no fine stack
+  };
+}
+function modsOf(tab) { return tab.mods || defaultMods(); }
+function isModified(tab) {
+  const m = modsOf(tab);
+  return !!((m.addedSieves && m.addedSieves.length) ||
+            (m.removedSieves && m.removedSieves.length) ||
+            (m.coarseMoisture !== null && m.coarseMoisture !== undefined) ||
+            (m.fineMoisture !== null && m.fineMoisture !== undefined) ||
+            (m.washBasis !== null && m.washBasis !== undefined) ||
+            (m.washSieve !== null && m.washSieve !== undefined));
+}
+// One line describing what was changed, for the bar above the tables.
+function modsSummary(tab) {
+  const m = modsOf(tab), bits = [];
+  const names = keys => keys.map(k => (SIEVE_BY_KEY[k] || {}).label || k).join(', ');
+  if (m.addedSieves && m.addedSieves.length)     bits.push('added ' + names(m.addedSieves));
+  if (m.removedSieves && m.removedSieves.length) bits.push('skipped ' + names(m.removedSieves));
+  if (m.coarseMoisture !== null && m.coarseMoisture !== undefined) bits.push('coarse moisture ' + (m.coarseMoisture ? 'on' : 'off'));
+  if (m.fineMoisture   !== null && m.fineMoisture   !== undefined) bits.push('fine moisture ' + (m.fineMoisture ? 'on' : 'off'));
+  if (m.washBasis !== null && m.washBasis !== undefined) {
+    bits.push(m.washBasis === WASH_NONE ? 'no wash' : 'wash: ' + m.washBasis.toLowerCase());
+  }
+  if (m.washSieve) bits.push('wash over ' + ((SIEVE_BY_KEY[m.washSieve] || {}).label || m.washSieve));
+  return bits.join(' \u00b7 ');
+}
+// The product row behind a tab. Matching on name alone was wrong: the same
+// product name can exist at more than one quarry with different specs.
+function productOf(tab) {
+  return state.products.find(p => p.Product === tab.product && p.Quarry === tab.quarry) || null;
+}
+// Does this test take an initial (wet) weight, so moisture can be computed?
+// A per-test override wins; otherwise the product's own flag.
+function usesCoarseMoisture(tab) {
+  const m = modsOf(tab);
+  if (m.coarseMoisture !== null && m.coarseMoisture !== undefined) return m.coarseMoisture;
+  const p = productOf(tab);
+  return !!(tab.isCustomProduct || (p && p.UsesCoarseInitialWeight));
+}
+function usesFineMoisture(tab) {
+  const m = modsOf(tab);
+  if (m.fineMoisture !== null && m.fineMoisture !== undefined) return m.fineMoisture;
+  const p = productOf(tab);
+  return !!(tab.isCustomProduct || (p && p.UsesFineInitialWeight));
+}
+function specKeySet(specs) {
+  const out = new Set();
+  specs.forEach(sp => {
+    const col = SIEVE_COLUMNS.find(c => c.label === sp.SieveLabel && c.type === sp.SieveType);
+    if (col) out.add(col.key);
+  });
+  return out;
+}
+
+// Build a tab's sieve rows from the product spec plus this test's
+// modifications, re-filling anything already entered. Pan is implied for any
+// section that ends up with at least one sieve.
+function buildSieveData(tab, specs) {
+  const m = modsOf(tab);
+  const removed = new Set(m.removedSieves || []);
+  const rows = [], placed = new Set();
+  const make = (label, type, order, min, max) => {
+    const row = createSieveRow(label, type, order, min, max);
+    const saved = (tab.retainedValues || {})[type + '|' + label];
+    if (saved) Object.assign(row, saved);
+    return row;
+  };
+
+  specs.forEach(sp => {
+    const col = SIEVE_COLUMNS.find(c => c.label === sp.SieveLabel && c.type === sp.SieveType);
+    const key = col ? col.key : null;
+    if (key && removed.has(key)) return;
+    if (key) placed.add(key);
+    rows.push(make(sp.SieveLabel, sp.SieveType, sp.SieveOrder,
+                   sp.MinPercent == null ? null : sp.MinPercent,
+                   sp.MaxPercent == null ? null : sp.MaxPercent));
+  });
+
+  // Added sieves carry no spec band. An ad-hoc screen has nothing to be inside
+  // or outside of, so its Spec column stays blank and it is never flagged.
+  (m.addedSieves || []).forEach(key => {
+    if (placed.has(key) || removed.has(key)) return;
+    const d = SIEVE_BY_KEY[key];
+    if (!d) return;
+    placed.add(key);
+    rows.push(make(d.label, d.type, d.order, null, null));
+  });
+
+  ['Coarse', 'Fine'].forEach(type => {
+    if (rows.some(r => r.sieveType === type)) {
+      rows.push(make('Pan', type, type === 'Coarse' ? 10 : 200, null, null));
+    }
+  });
+  return rows;
+}
+
+// Re-derive the rows after the modification set changes, keeping every value
+// the tech has typed -- including on sieves being hidden, which come straight
+// back if the sieve is re-added.
+async function applyMods(tab) {
+  tab.retainedValues = Object.assign({}, tab.retainedValues || {}, snapshotEnteredValues(tab));
+  const specs = await getProductSpecs(tab.product, tab.quarry);
+  tab.sieveData = buildSieveData(tab, specs);
+  await saveTab(tab);
+  renderAll();
 }
 
 function createSieveRow(label, type, order, min, max) {
@@ -2131,22 +2432,188 @@ function maxDecimals(...nums) {
   nums.forEach(n => { const d = decimalsOf(n); if (d > max) max = d; });
   return max;
 }
-function calcLossByWash(tab) {
-  if (!tab.dryWeight || !tab.washedDryWeight) return 0;
+// ── WASH MODEL ────────────────────────────────────────────────
+// Three separate ideas, deliberately kept separate: whether a fine stack
+// exists (derivable from the data), whether there was a wash, and what
+// population the washed portion represents (both stored).
+//
+//   WashBasis   None | Whole Sample | Coarse Pan   (also says IF there was a wash)
+//   WashSieve   which screen the wash was over; only needed when the test has
+//               no fine stack, since with one it is always the smallest sieve
+//
+// Every arrangement the lab actually runs, with one code path:
+//
+//   what the tech did                 basis          wash sieve        passing at it
+//   coarse only                       None           --                --
+//   coarse + dry fine stack           None           --                (scaled by pan)
+//   coarse + washed fine stack        Coarse Pan     smallest fine     (loss+pan)/M x P(pan)
+//   coarse-pan portion, wash only     Coarse Pan     chosen            loss/M x P(pan)
+//   whole-sample portion, wash only   Whole Sample   chosen            loss/M
+//   washed sand (fine-only product)   Whole Sample   smallest fine     (loss+pan)/M
+//
+// M is the portion's pre-wash dry weight. The split fraction never appears:
+// percent passing within a stack is a ratio, so it cancels. Only the basis
+// matters.
+const WASH_NONE = 'None', WASH_WHOLE = 'Whole Sample', WASH_PAN = 'Coarse Pan';
+const WASH_BASES = [WASH_NONE, WASH_PAN, WASH_WHOLE];
+
+// Match a WashBasis cell to one of the three known values, forgivingly: case
+// and stray whitespace are ignored, so "coarse pan", "Coarse  Pan" and
+// "COARSE PAN" all land on WASH_PAN. Anything unrecognised (including blank)
+// returns null and the caller falls back.
+function matchWashBasis(raw) {
+  if (raw === null || raw === undefined) return null;
+  const norm = String(raw).trim().replace(/\s+/g, ' ').toLowerCase();
+  if (!norm) return null;
+  const hit = WASH_BASES.find(b => b.toLowerCase() === norm);
+  if (hit) return hit;
+  // A couple of shorthands worth accepting rather than silently ignoring.
+  if (norm === 'pan' || norm === 'coarsepan') return WASH_PAN;
+  if (norm === 'whole' || norm === 'wholesample') return WASH_WHOLE;
+  if (norm === 'none' || norm === 'no') return WASH_NONE;
+  console.warn('Unrecognised WashBasis "' + raw + '" — treating as no wash.');
+  return null;
+}
+// Product-level default, ignoring any per-test override. A blank or
+// unrecognised WashBasis means no wash — there is no other source for it.
+function productWashBasis(tab) {
+  if (tab.isCustomProduct) {
+    // customWashBasis is set from the custom dialog's Washed / Dry Only toggle.
+    // The second half is a one-time migration for custom tabs saved to
+    // IndexedDB before that field existed — unrelated to the FineMode column,
+    // and removable once no such tab can still be open.
+    return matchWashBasis(tab.customWashBasis) ||
+           (tab.customFineSectionMode === 'Washed' ? WASH_PAN : WASH_NONE);
+  }
+  return matchWashBasis(productOf(tab) && productOf(tab).WashBasis) || WASH_NONE;
+}
+function washBasisOf(tab) {
+  const m = modsOf(tab);
+  if (m.washBasis !== null && m.washBasis !== undefined) return m.washBasis;
+  return productWashBasis(tab);
+}
+function isWashing(tab) { return washBasisOf(tab) !== WASH_NONE; }
+
+// Accepts a SIEVE_DEFS key ("Fine_No200"), a "Type|Label" pair ("Fine|#200"),
+// or a bare label ("#200").
+//
+// Every label exists twice — once in the Coarse table and once in the Fine one —
+// so a bare label has to pick. It picks FINE, because that is where a wash
+// result belongs and where the viewer looks for one. Resolving "#200" to
+// Coarse_No200 would file the number in a column nothing reads.
+//
+// The dialog always stores a full key, so this only has to cope with values
+// typed into the WashSieve column by hand. Use "Fine|#200" there if you ever
+// genuinely mean the coarse one.
+function normalizeSieveKey(v) {
+  if (!v) return null;
+  const str = String(v).trim();
+  if (!str) return null;
+  if (SIEVE_BY_KEY[str]) return str;
+  let type = null, label = str;
+  if (str.indexOf('|') !== -1) {
+    type = str.slice(0, str.indexOf('|')).trim();
+    label = str.slice(str.indexOf('|') + 1).trim();
+  }
+  let hit;
+  if (type) {
+    hit = SIEVE_DEFS.find(d => d.label === label && d.type === type);
+  } else {
+    hit = SIEVE_DEFS.find(d => d.label === label && d.type === 'Fine') ||
+          SIEVE_DEFS.find(d => d.label === label);
+  }
+  return hit ? hit.key : null;
+}
+function productWashSieveKey(tab) {
+  const p = productOf(tab);
+  return p ? normalizeSieveKey(p.WashSieve) : null;
+}
+// The sieve the wash was actually over. With a fine stack this is DERIVED, not
+// chosen: washing over anything coarser than the smallest sieve in the stack
+// leaves the finer screens catching nothing, so they report a number equal to
+// the wash sieve's — confidently wrong rather than obviously wrong.
+function washSieveKeyOf(tab) {
+  if (!isWashing(tab)) return null;
+  const fine = tab.sieveData.filter(r => r.sieveType === 'Fine' && r.sieveLabel !== 'Pan');
+  if (fine.length) {
+    const smallest = fine.reduce((a, b) => (b.sieveOrder < a.sieveOrder ? b : a));
+    const col = SIEVE_COLUMNS.find(c => c.label === smallest.sieveLabel && c.type === smallest.sieveType);
+    return col ? col.key : null;
+  }
+  const m = modsOf(tab);
+  if (m.washSieve) return normalizeSieveKey(m.washSieve);
+  return productWashSieveKey(tab);
+}
+function washSieveLabel(tab) {
+  const k = washSieveKeyOf(tab);
+  return k ? ((SIEVE_BY_KEY[k] || {}).label || k) : null;
+}
+
+// Mass the wash carried off: everything finer than the wash sieve.
+function washLoss(tab) {
+  if (!isWashing(tab)) return 0;
+  if (tab.dryWeight == null || tab.washedDryWeight == null) return 0;
   return tab.dryWeight - tab.washedDryWeight;
 }
-function calcTotalFineWeight(tab) {
-  const sieveSum = calcTotalWeight(tab.sieveData, 'Fine');
-  const fineSectionMode = getFineSectionMode(tab);
-  const lossByWash = (fineSectionMode === 'Washed' && tab.dryWeight && tab.washedDryWeight)
-    ? calcLossByWash(tab)
-    : 0;
-  return sieveSum + lossByWash;
+// Kept under the old name — several call sites and the on-screen label use it.
+function calcLossByWash(tab) { return washLoss(tab); }
+
+// The population every fine percentage is a ratio against. With a stack it is
+// reconstructed from what was actually weighed (retained + washed away), which
+// is what the on-screen loss check compares against the entered dry weight.
+// Without a stack nothing was sieved, so the portion's dry weight IS the whole
+// population.
+function fineBaseWeight(tab) {
+  if (!hasFineSieves(tab)) return tab.dryWeight || 0;
+  return calcTotalWeight(tab.sieveData, 'Fine') + washLoss(tab);
 }
-function getFineSectionMode(tab) {
-  if (tab.isCustomProduct) return tab.customFineSectionMode || 'None';
-  const prod = state.products.find(p => p.Product === tab.product);
-  return prod?.FineSectionMode || 'None';
+function calcTotalFineWeight(tab) { return fineBaseWeight(tab); }
+
+// Percent passing within the coarse stack only — no scaling, no recursion.
+function coarsePctPassing(tab, row) {
+  const total = calcTotalWeight(tab.sieveData, 'Coarse');
+  if (!total) return null;
+  const above = tab.sieveData
+    .filter(r => r.sieveType === 'Coarse' && r.sieveOrder >= row.sieveOrder)
+    .reduce((sum, r) => sum + (r.individual !== null && !isNaN(r.individual) ? r.individual : 0), 0);
+  return Math.round(((total - above) / total * 100) * 10) / 10;
+}
+// Percent of the whole sample that reached the coarse pan.
+function coarsePanFraction(tab) {
+  const rows = tab.sieveData.filter(r =>
+    r.sieveType === 'Coarse' && r.sieveLabel !== 'Pan' && r.isTouched);
+  if (!rows.length) return null;
+  const smallest = rows.reduce((a, b) => (b.sieveOrder < a.sieveOrder ? b : a));
+  return coarsePctPassing(tab, smallest);
+}
+// What fraction of the whole sample the fine/wash portion stands for.
+// Returns null when it should be knowable but isn't yet.
+function basisScale(tab) {
+  if (washBasisOf(tab) === WASH_WHOLE) return 1;
+  if (!hasCoarseSieves(tab)) return 1;   // the fine stack IS the whole sample
+  const pct = coarsePanFraction(tab);
+  return pct === null ? null : pct / 100;
+}
+
+// Percent passing the wash sieve on a wash-only test. washedDryWeight is by
+// definition the mass retained ON the wash sieve, so the loss is everything
+// that passed it. With a fine stack this is not used — that sieve's own row
+// already reports it, and correctly includes the pan.
+function washSievePassing(tab) {
+  if (!isWashing(tab) || hasFineSieves(tab)) return null;
+  const base = tab.dryWeight;
+  if (!base || tab.washedDryWeight == null) return null;
+  const scale = basisScale(tab);
+  if (scale === null) return null;
+  return Math.round((washLoss(tab) / base * 100 * scale) * 10) / 10;
+}
+// Label of the smallest coarse sieve actually entered — the one the pan
+// fraction is measured at.
+function smallestCoarseLabel(tab) {
+  const rows = tab.sieveData.filter(r =>
+    r.sieveType === 'Coarse' && r.sieveLabel !== 'Pan' && r.isTouched);
+  if (!rows.length) return null;
+  return rows.reduce((a, b) => (b.sieveOrder < a.sieveOrder ? b : a)).sieveLabel;
 }
 function hasCoarseSieves(tab) {
   return tab.sieveData.some(r => r.sieveType === 'Coarse');
@@ -2161,19 +2628,20 @@ function getMissingFields(tab) {
   const missing = [];
   if (!tab.technician || !tab.technician.trim()) missing.push('Technician');
 
-  const prod = state.products.find(p => p.Product === tab.product);
-  const showCoarseInitial = tab.isCustomProduct || prod?.UsesCoarseInitialWeight;
-  const showFineInitial = tab.isCustomProduct || prod?.UsesFineInitialWeight;
-  const fineMode = getFineSectionMode(tab);
+  const showCoarseInitial = usesCoarseMoisture(tab);
+  const showFineInitial = usesFineMoisture(tab);
+  const washing = isWashing(tab);
 
   if (hasCoarseSieves(tab) && showCoarseInitial && tab.initialWeight === null) {
     missing.push('Coarse Initial Weight');
   }
-  if (hasFineSieves(tab) && fineMode !== 'None') {
+  if (hasFineSieves(tab) || washing) {
     if (showFineInitial && tab.fineInitialWeight === null) missing.push('Fine Initial Weight');
     if (tab.dryWeight === null) missing.push('Dry Weight');
-    if (fineMode === 'Washed' && tab.washedDryWeight === null) missing.push('Washed Dry Weight');
+    if (washing && tab.washedDryWeight === null) missing.push('Washed Dry Weight');
   }
+  // A wash with nowhere to record the result is not a recoverable state.
+  if (washing && !washSieveKeyOf(tab)) missing.push('Wash Sieve');
   tab.sieveData.forEach(row => {
     if (row.individual === null) missing.push(`${row.sieveType} ${row.sieveLabel}`);
   });
@@ -2186,38 +2654,26 @@ function allSievesTouched(tab, type) {
   return rows.every(r => r.isTouched && r.individual !== null && !isNaN(r.individual));
 }
 function calcPctPassing(tab, row) {
-  const type = row.sieveType;
-  const totalWeight = type === 'Coarse'
-    ? calcTotalWeight(tab.sieveData, 'Coarse')
-    : calcTotalFineWeight(tab);
-  if (!totalWeight) return null;
-  if (!allSievesTouched(tab, type)) return null;
-  const sortedRows = tab.sieveData
-    .filter(r => r.sieveType === type)
-    .sort((a, b) => b.sieveOrder - a.sieveOrder);
-  const retainedAbove = sortedRows
-    .filter(r => r.sieveOrder >= row.sieveOrder)
-    .reduce((s, r) => s + (r.individual !== null && !isNaN(r.individual) ? r.individual : 0), 0);
-  let rawPct = Math.round(((totalWeight - retainedAbove) / totalWeight * 100) * 10) / 10;
-  // Apply MNDOT 1203 Fine scaling if both sections present
-  if (type === 'Fine' && hasCoarseSieves(tab)) {
-    const coarseRows = tab.sieveData
-      .filter(r => r.sieveType === 'Coarse')
-      .sort((a, b) => a.sieveOrder - b.sieveOrder);
-    const lastCoarse = coarseRows.find(r => r.sieveLabel !== 'Pan' && r.isTouched);
-    if (lastCoarse) {
-      const coarseTotal = calcTotalWeight(tab.sieveData, 'Coarse');
-      if (coarseTotal) {
-        const coarseRows2 = tab.sieveData.filter(r => r.sieveType === 'Coarse');
-        const retainedAboveCoarse = coarseRows2
-          .filter(r => r.sieveOrder >= lastCoarse.sieveOrder)
-          .reduce((s, r) => s + (r.individual !== null && !isNaN(r.individual) ? r.individual : 0), 0);
-        const lastCoarsePct = Math.round(((coarseTotal - retainedAboveCoarse) / coarseTotal * 100) * 10) / 10;
-        rawPct = Math.round((rawPct * lastCoarsePct / 100) * 10) / 10;
-      }
-    }
-  }
-  return rawPct;
+  if (!allSievesTouched(tab, row.sieveType)) return null;
+
+  if (row.sieveType === 'Coarse') return coarsePctPassing(tab, row);
+
+  // Fine. Note the pan is NOT "at or above" any sieve, so it lands in the
+  // passing side of every one of them — which is exactly right. A wash rarely
+  // carries off everything that should pass; shaking the stack afterwards
+  // pushes more through the smallest screen, and that mass has to be counted
+  // alongside the wash loss.
+  const base = fineBaseWeight(tab);
+  if (!base) return null;
+  const above = tab.sieveData
+    .filter(r => r.sieveType === 'Fine' && r.sieveOrder >= row.sieveOrder)
+    .reduce((sum, r) => sum + (r.individual !== null && !isNaN(r.individual) ? r.individual : 0), 0);
+  const within = Math.round(((base - above) / base * 100) * 10) / 10;
+
+  // Scale from "percent of the portion" up to "percent of the whole sample".
+  const scale = basisScale(tab);
+  if (scale === null) return null;
+  return scale === 1 ? within : Math.round((within * scale) * 10) / 10;
 }
 function calcMoisture(initialWeight, dryWeight) {
   if (!initialWeight || !dryWeight) return null;
@@ -2225,30 +2681,61 @@ function calcMoisture(initialWeight, dryWeight) {
 }
 
 // ── SIEVE DATA OPERATIONS ─────────────────────────────────────
+// Rebuild every derived individual weight in a section from the cumulative
+// column, walking top sieve down.
+//
+// This exists because editing one cumulative cell changes the individual of the
+// row BELOW it as well as its own. The old code read the row above at the
+// moment of typing and wrote only its own individual, so going back to correct
+// an upper cumulative left every row beneath it holding a stale individual —
+// and therefore a stale % passing.
+//
+// Chain rules:
+//   * A row whose individual was typed directly breaks the chain. It keeps its
+//     own value, and everything below it is locked out of cumulative entry
+//     (see isCumulativeLocked), so those rows can only be entered directly too.
+//   * A blank cumulative does NOT break the chain. The next filled row below
+//     subtracts from the last real value above it, which correctly attributes
+//     the combined mass to the sieve that actually caught it.
+function recomputeSection(tab, type) {
+  const rows = tab.sieveData
+    .filter(r => r.sieveType === type)
+    .sort((a, b) => b.sieveOrder - a.sieveOrder);
+  let prevCum = null;        // last real cumulative seen in this run
+  let manualAbove = false;   // a direct individual entry has broken the chain
+  rows.forEach(row => {
+    if (row.isUserEnteredIndividual) {
+      row.cumulative = null;
+      manualAbove = true;
+      return;
+    }
+    if (manualAbove) {
+      // Cumulative entry is locked from here down and this row has no direct
+      // entry, so anything it is still holding came from a chain that no
+      // longer applies.
+      row.cumulative = null;
+      row.individual = null;
+      row.isTouched = false;
+      return;
+    }
+    const cum = row.cumulative;
+    if (cum === null || cum === undefined || isNaN(cum)) {
+      row.individual = null;
+      row.isTouched = false;
+      return;
+    }
+    row.individual = prevCum === null ? cum : Math.round((cum - prevCum) * 1000) / 1000;
+    row.isTouched = true;
+    prevCum = cum;
+  });
+}
+
 function onCumulativeChange(tab, row, value) {
   const parsed = value === '' ? null : parseFloat(value);
   const val = (parsed === null || isNaN(parsed)) ? null : parsed; // guards against stray non-numeric input now that these are type="text"
-  // Sort descending by SieveOrder (top sieve first = highest SieveOrder first)
-  const sortedRows = tab.sieveData
-    .filter(r => r.sieveType === row.sieveType)
-    .sort((a, b) => b.sieveOrder - a.sieveOrder);
-  const idx = sortedRows.findIndex(r => r.sieveLabel === row.sieveLabel && r.sieveType === row.sieveType);
   row.cumulative = val;
   row.isUserEnteredIndividual = false;
-  row.isTouched = val !== null && !isNaN(val);
-  if (val === null || isNaN(val)) {
-    row.individual = null;
-    row.isTouched = false;
-  } else if (idx === 0) {
-    // Top sieve: individual = cumulative
-    row.individual = val;
-  } else {
-    // Individual = this cumulative minus the cumulative of the row above (idx - 1)
-    const rowAbove = sortedRows[idx - 1];
-    row.individual = rowAbove.cumulative !== null && !isNaN(rowAbove.cumulative)
-      ? Math.round((val - rowAbove.cumulative) * 1000) / 1000
-      : val;
-  }
+  recomputeSection(tab, row.sieveType);
 }
 function onIndividualChange(tab, row, value) {
   const parsed = value === '' ? null : parseFloat(value);
@@ -2256,11 +2743,8 @@ function onIndividualChange(tab, row, value) {
   row.individual = val;
   row.isUserEnteredIndividual = val !== null;
   row.isTouched = val !== null;
-  if (val === null) {
-    row.cumulative = null;
-  } else {
-    row.cumulative = null; // Clear cumulative when individual is directly entered
-  }
+  row.cumulative = null; // a direct individual always clears its own cumulative
+  recomputeSection(tab, row.sieveType);
 }
 function isCumulativeLocked(tab, row) {
   const sortedRows = tab.sieveData
@@ -2273,6 +2757,18 @@ function isCumulativeLocked(tab, row) {
 
 // ── IN-PLACE UPDATE (preserves focus) ────────────────────────
 function updateSieveDisplays(tab) {
+  // Cumulative inputs can now be cleared by recomputeSection() when a direct
+  // individual entry above them breaks the chain, so they need syncing too —
+  // otherwise a stale number sits in a disabled box until the next full render.
+  document.querySelectorAll('.sieve-input[data-field="cumulative"]').forEach(input => {
+    const { label, type } = input.dataset;
+    const row = tab.sieveData.find(r => r.sieveLabel === label && r.sieveType === type);
+    if (!row) return;
+    if (document.activeElement !== input) {
+      input.value = (row.cumulative !== null && row.cumulative !== undefined && !isNaN(row.cumulative))
+        ? row.cumulative : '';
+    }
+  });
   // Update individual input values in-place without re-rendering
   document.querySelectorAll('.sieve-input[data-field="individual"]').forEach(input => {
     const { label, type } = input.dataset;
@@ -2349,9 +2845,20 @@ function renderHeader() {
 
 function renderProductDropdown(tab) {
   const sel = document.getElementById('sel-product');
+  // A blank DisplayOrder used to hide the product outright, which meant this
+  // app and the viewer disagreed about which products exist. Inactive is the
+  // only thing that hides a product now (deriveProducts already filters on
+  // Active); blanks simply sort to the bottom, above Custom.
   const quarryProducts = state.products
-    .filter(p => p.Quarry === tab.quarry && p.DisplayOrder != null)
-    .sort((a, b) => a.DisplayOrder - b.DisplayOrder);
+    .filter(p => p.Quarry === tab.quarry)
+    .sort((a, b) => {
+      const oa = parseFloat(a.DisplayOrder), ob = parseFloat(b.DisplayOrder);
+      const ha = isNaN(oa), hb = isNaN(ob);
+      if (ha && hb) return String(a.Product || '').localeCompare(String(b.Product || ''));
+      if (ha) return 1;
+      if (hb) return -1;
+      return oa - ob;
+    });
   sel.innerHTML = `<option value="">Select Product...</option>`;
   quarryProducts.forEach(p => {
     const opt = document.createElement('option');
@@ -2406,9 +2913,13 @@ function renderSieveSection() {
   document.body.classList.remove('no-active-tab');
   const focusInfo = captureFocusInfo(section);
   let html = '';
-  const fineSectionMode = getFineSectionMode(tab);
   const showCoarse = hasCoarseSieves(tab);
-  const showFine = hasFineSieves(tab) && fineSectionMode !== 'None';
+  const showWash = isWashing(tab);
+  // Was also gated on the product's FineMode, which meant a fine sieve added to
+  // a coarse-only product built rows that never appeared on screen. If the test
+  // has fine sieves it has a fine section; the wash-specific fields inside it
+  // are what stay keyed to the mode.
+  const showFine = hasFineSieves(tab);
 
   // Custom product name edit
   if (tab.isCustomProduct) {
@@ -2418,13 +2929,23 @@ function renderSieveSection() {
     </div>`;
   }
 
+  // Per-test modification bar. Catalog products only: a custom product is
+  // already defined sieve-by-sieve in its own dialog, so there is nothing to
+  // deviate from.
+  if (!tab.isCustomProduct && tab.product) {
+    const modded = isModified(tab);
+    html += `<div class="modify-bar">
+      <button type="button" class="modify-btn" id="btn-modify">Modify test\u2026</button>
+      ${modded ? `<span class="modify-chip">MODIFIED</span><span class="modify-sum">${esc(modsSummary(tab))}</span>` : ''}
+    </div>`;
+  }
+
   if (showCoarse) {
     const coarseRows = tab.sieveData
       .filter(r => r.sieveType === 'Coarse')
       .sort((a, b) => b.sieveOrder - a.sieveOrder);
     const totalCoarse = calcTotalWeight(tab.sieveData, 'Coarse');
-    const prod = state.products.find(p => p.Product === tab.product);
-    const showInitialWeight = tab.isCustomProduct || prod?.UsesCoarseInitialWeight;
+    const showInitialWeight = usesCoarseMoisture(tab);
     if (showInitialWeight) {
       const moisture = calcMoisture(tab.initialWeight, totalCoarse || null);
       html += `<div class="section-label">Coarse Sieves</div>
@@ -2448,9 +2969,7 @@ function renderSieveSection() {
       .filter(r => r.sieveType === 'Fine')
       .sort((a, b) => b.sieveOrder - a.sieveOrder);
     const totalFine = calcTotalFineWeight(tab);
-    const lossByWash = fineSectionMode === 'Washed' ? calcLossByWash(tab) : 0;
-    const prod = state.products.find(p => p.Product === tab.product);
-    const showFineInitial = tab.isCustomProduct || prod?.UsesFineInitialWeight;
+    const showFineInitial = usesFineMoisture(tab);
     html += `<div class="section-label">Fine Sieves</div>`;
     if (showFineInitial) {
       const fineMoisture = calcMoisture(tab.fineInitialWeight, tab.dryWeight);
@@ -2464,14 +2983,14 @@ function renderSieveSection() {
       <span class="weight-label">Dry Weight:</span>
       <input class="weight-input" id="inp-dry-weight" name="weight_dry" type="text" inputmode="none" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.dryWeight ?? ''}" placeholder="">
     </div>`;
-    if (fineSectionMode === 'Washed') {
+    if (showWash) {
       html += `<div class="weight-row">
         <span class="weight-label">Washed Dry Weight:</span>
         <input class="weight-input" id="inp-washed-dry" name="weight_washed_dry" type="text" inputmode="none" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.washedDryWeight ?? ''}" placeholder="">
       </div>`;
     }
     html += renderSieveTable(tab, fineRows, 'Fine', totalFine);
-    if (fineSectionMode === 'Washed') {
+    if (showWash) {
       const lbw = calcLossByWash(tab);
       html += `<div class="weight-row" style="padding-left:22px;padding-right:22px;margin-top:2px">
         <span class="weight-label">Loss by Wash:</span>
@@ -2479,7 +2998,7 @@ function renderSieveSection() {
       </div>`;
     }
     {
-      const lossCheckPct = (fineSectionMode === 'Washed' && tab.dryWeight && totalFine > 0)
+      const lossCheckPct = (showWash && tab.dryWeight && totalFine > 0)
         ? Math.round(((totalFine - tab.dryWeight) / tab.dryWeight * 100) * 100) / 100
         : null;
       const lossStr = lossCheckPct !== null
@@ -2490,6 +3009,68 @@ function renderSieveSection() {
         <span class="total-value" data-type="Fine" style="font-family:var(--font-data);font-size:13px;color:var(--data-val)">${totalFine > 0 ? fmtToSection(totalFine, tab.sieveData, 'Fine') : ''}</span>${lossStr}
       </div>`;
     }
+  }
+
+  // Wash-only: a wash with no fine stack behind it. Nothing was sieved, so
+  // there is no fine table to hang the weights off — this gets its own compact
+  // section instead of borrowing one. Same input ids, so bindSieveEvents wires
+  // them without knowing which layout produced them.
+  if (showWash && !showFine) {
+    const wsLabel = washSieveLabel(tab);
+    const pct = washSievePassing(tab);
+    html += `<div class="section-label">Wash${wsLabel ? ' \u2014 ' + esc(wsLabel) : ''}</div>`;
+    if (!wsLabel) {
+      html += `<div class="wash-warn">No wash sieve set, so there is nowhere to record the
+        result. Set one under <b>Modify test</b>, or fill in WashSieve on the product.</div>`;
+    }
+    if (usesFineMoisture(tab)) {
+      const fm = calcMoisture(tab.fineInitialWeight, tab.dryWeight);
+      html += `<div class="weight-row">
+        <span class="weight-label">Initial Weight:</span>
+        <input class="weight-input" id="inp-fine-initial-weight" name="weight_fine_initial" type="text" inputmode="none" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.fineInitialWeight ?? ''}" placeholder="">
+        ${fm !== null ? `<span class="weight-computed${fm < 0 ? ' red':''}">${fm}% moisture</span>` : ''}
+      </div>`;
+    }
+    html += `<div class="weight-row">
+      <span class="weight-label">Dry Weight:</span>
+      <input class="weight-input" id="inp-dry-weight" name="weight_dry" type="text" inputmode="none" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.dryWeight ?? ''}" placeholder="">
+    </div>`;
+    html += `<div class="weight-row">
+      <span class="weight-label">Washed Dry Weight:</span>
+      <input class="weight-input" id="inp-washed-dry" name="weight_washed_dry" type="text" inputmode="none" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" value="${tab.washedDryWeight ?? ''}" placeholder="">
+    </div>`;
+    if (tab.dryWeight != null && tab.washedDryWeight != null) {
+      html += `<div class="weight-row" style="padding-left:22px;padding-right:22px;margin-top:2px">
+        <span class="weight-label">Loss by Wash:</span>
+        <span style="font-family:var(--font-data);font-size:13px;color:var(--data-val)">${calcLossByWash(tab).toFixed(maxDecimals(tab.dryWeight, tab.washedDryWeight))}</span>
+      </div>`;
+    }
+    if (wsLabel) {
+      html += `<div class="weight-row" style="padding-left:22px;padding-right:22px;margin-top:2px">
+        <span class="weight-label">% Passing ${esc(wsLabel)}:</span>
+        <span class="weight-computed">${pct === null ? '' : pct + '%'}</span>
+      </div>`;
+    }
+  }
+
+  // How the wash portion is being scaled back to the whole sample. Worth
+  // stating outright: it is the difference between two numbers that otherwise
+  // look identical on screen.
+  if (showWash) {
+    const basis = washBasisOf(tab);
+    let note;
+    if (basis === WASH_WHOLE) {
+      note = 'Portion of the <b>whole sample</b> \u2014 results are already whole-sample, no scaling applied.';
+    } else if (!hasCoarseSieves(tab)) {
+      note = 'No coarse stack, so the fine result is already whole-sample \u2014 no scaling applied.';
+    } else {
+      const frac = coarsePanFraction(tab);
+      note = 'Portion of the <b>coarse pan</b> \u2014 scaled by ' +
+        (frac === null ? 'the smallest coarse sieve once it has values'
+                       : frac + '% passing ' + esc(smallestCoarseLabel(tab) || ''));
+      note += '.';
+    }
+    html += `<div class="wash-note">${note}</div>`;
   }
 
   // Notes + actions — always show delete, only show submit when product selected.
@@ -2518,6 +3099,8 @@ function renderSieveSection() {
   // Delete is always visible — bind regardless of product selection
   const deleteBtn = document.getElementById('btn-delete');
   if (deleteBtn) deleteBtn.addEventListener('click', () => showOverlay('overlay-delete'));
+  const modifyBtn = document.getElementById('btn-modify');
+  if (modifyBtn) modifyBtn.addEventListener('click', openModifyDialog);
   bindSieveEvents(tab);
   restoreFocusInfo(focusInfo);
 
@@ -2614,6 +3197,16 @@ function esc(str) {
 // same column (or blur+dismiss on the last/Pan row), 'prev' → previous.
 // Used by both the physical-keyboard handler and the on-screen numpad, so
 // navigation behavior can never drift between the two.
+// Caret after the last character, rather than selecting the whole value.
+// Selecting all meant a tech who tabbed back to fix a bad entry had the first
+// digit silently wipe the field; with the caret at the end they can just
+// backspace. Only ever applied as a field BECOMES active — a deliberate Pencil
+// tap inside an already-focused field still positions the caret where it lands.
+function caretToEnd(el) {
+  if (!el) return;
+  try { const n = el.value.length; el.setSelectionRange(n, n); } catch (_) {}
+}
+
 function sieveNav(el, mode) {
   const isSieve = el.classList.contains('sieve-input');
   if (!isSieve) { // weight inputs: Enter just closes out
@@ -2629,13 +3222,13 @@ function sieveNav(el, mode) {
   const isLast = idx < 0 || idx >= all.length - 1;
   if (mode === 'peek-last') return (isPan || isLast) ? 'is-last' : false;
   if (mode === 'prev') {
-    if (idx > 0) { all[idx - 1].focus({ preventScroll: true }); all[idx - 1].select(); }
+    if (idx > 0) { all[idx - 1].focus({ preventScroll: true }); caretToEnd(all[idx - 1]); }
     return true;
   }
   // 'enter' / 'next'
   if (isPan || isLast) { el.blur(); return 'blur'; }
   all[idx + 1].focus({ preventScroll: true });
-  all[idx + 1].select();
+  caretToEnd(all[idx + 1]);
   return true;
 }
 
@@ -2869,8 +3462,6 @@ async function doSubmit() {
 
 function buildSubmissionRecord(tab) {
   const coarseTotal = calcTotalWeight(tab.sieveData, 'Coarse');
-  const fineTotal = calcTotalFineWeight(tab);
-  const fineSectionMode = getFineSectionMode(tab);
   const rec = {
     Title: `${tab.product || 'Custom'} — ${tab.quarry} — ${tab.sampleDate}`,
     Quarry: tab.quarry,
@@ -2885,14 +3476,31 @@ function buildSubmissionRecord(tab) {
     CoarseMoisturePct: calcMoisture(tab.initialWeight, coarseTotal) ?? null,
     FineMoisturePct: calcMoisture(tab.fineInitialWeight, tab.dryWeight) ?? null,
   };
+  // WashBasis and WashSieve are deliberately NOT written to Gradation_Master_Log.
+  // Those columns don't exist there, and Graph rejects a POST naming a column a
+  // list doesn't have — a rejected submission lands in the offline queue and
+  // retries forever. They're config for how the numbers are derived, not
+  // results; a one-off test is already visible in Review and in the viewer's
+  // "show all tested" mode purely from which columns carry values.
   // %-passing columns — same SIEVE_COLUMNS master list used to build the
   // Products list, so the two lists' sieve column names always stay in sync.
+  // A wash-only test has no fine rows at all, so the wash sieve's result has
+  // to be written explicitly — it comes from the wash weights, not a row.
+  if (isWashing(tab) && !hasFineSieves(tab)) {
+    const wsKey = washSieveKeyOf(tab);
+    const v = washSievePassing(tab);
+    if (wsKey && v !== null) rec[wsKey + '_Pct'] = v;
+  }
   tab.sieveData.forEach(row => {
     if (row.sieveLabel === 'Pan') return;
     const col = SIEVE_COLUMNS.find(c => c.label === row.sieveLabel && c.type === row.sieveType);
     if (col) {
-      const pct = calcPctPassing(tab, row);
-      rec[col.key + '_Pct'] = pct !== null ? pct : 0;
+      // null, NOT 0. calcPctPassing returns null whenever the value can't be
+      // computed — including when any sieve in the section is still untouched.
+      // Writing 0 there made an unfinished section look like a real all-zero
+      // gradation, and the viewer folded those into averages, min/max and Cpk.
+      // null tells SharePoint to leave the column blank.
+      rec[col.key + '_Pct'] = calcPctPassing(tab, row);
     }
   });
   return rec;
@@ -2968,9 +3576,28 @@ async function flushQueue() {
 }
 
 // ── OVERLAYS ──────────────────────────────────────────────────
+// The input the on-screen numpad is currently driving. Deliberately at module
+// scope rather than closed over by the numpad wiring below, so that anything
+// which tears down the DOM — switching screens, switching tabs, submitting —
+// can take the pad down with it. Otherwise the pad stays visible, pointing at
+// a detached element, and every key including Done does nothing.
+let npInput = null;
+function closeNumpad() {
+  // Blurring runs the normal focusout path, which fires any pending 'change'
+  // and saves. Safe to call when nothing is focused.
+  if (npInput && document.contains(npInput)) npInput.blur();
+  npInput = null;
+  document.body.classList.remove('numpad-open');
+}
+
 function showOverlay(id) {
   document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden'));
-  if (id) document.getElementById(id)?.classList.remove('hidden');
+  if (!id) return;
+  // A dialog is taking over. Commit whatever is focused, then drop the pad so
+  // it can't sit on top of the dialog.
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  closeNumpad();
+  document.getElementById(id)?.classList.remove('hidden');
 }
 function showResult(success, msg) {
   document.getElementById('result-title').textContent = success ? '✓ Submitted' : '📥 Saved Locally';
@@ -3015,9 +3642,6 @@ function confirmCustomProduct() {
   tab.product = name;
   tab.productId = null; // custom products never carry a ProductID
   tab.isCustomProduct = true;
-  tab.customFineSectionMode = (state.customSection === 'Fine' || state.customSection === 'Both')
-    ? state.customFineMode
-    : 'None';
   tab.sieveData = [];
   checked.forEach(cb => {
     tab.sieveData.push(createSieveRow(cb.dataset.label, cb.dataset.type, parseInt(cb.dataset.order), null, null));
@@ -3034,9 +3658,134 @@ function confirmCustomProduct() {
   if (hasCheckedFine) {
     tab.sieveData.push(createSieveRow('Pan', 'Fine', 200, null, null));
   }
+  // The dialog's Washed / Dry Only toggle maps straight onto a basis: a washed
+  // custom product with a coarse stack is a coarse-pan split, and without one
+  // the fine stack IS the whole sample.
+  tab.customWashBasis = (hasCheckedFine && state.customFineMode === 'Washed')
+    ? (hasCheckedCoarse ? WASH_PAN : WASH_WHOLE)
+    : WASH_NONE;
   showOverlay(null);
   saveTab(tab);
   renderAll();
+}
+
+// ── MODIFY THIS TEST ─────────────────────────────────────────
+// Every sieve is offered, with the ones already in play ticked. Sieves that
+// belong to the product carry a SPEC chip so it stays obvious which are the
+// product's own and which are one-offs for this test.
+// Wash sieve is only a choice when the test has no fine stack; with one it is
+// always the smallest fine sieve. Hide the control rather than offer a pick
+// that would be ignored, and say why.
+function updateModifyWashUI() {
+  const basisEl = document.getElementById('mod-wash-basis');
+  const row = document.getElementById('mod-wash-sieve-row');
+  const note = document.getElementById('mod-wash-note');
+  if (!basisEl || !row || !note) return;
+  const basis = basisEl.value;
+  if (basis === WASH_NONE) {
+    row.style.display = 'none';
+    note.textContent = 'No wash on this test.';
+    return;
+  }
+  const anyFine = !!document.querySelector('#modify-picker input[data-key^="Fine_"]:checked');
+  row.style.display = anyFine ? 'none' : 'flex';
+  const bits = [];
+  bits.push(anyFine
+    ? 'Wash sieve is the smallest fine sieve ticked above \u2014 derived, not chosen, because ' +
+      'washing over anything coarser leaves the finer screens catching nothing.'
+    : 'No fine sieves ticked, so pick the screen the wash was done over.');
+  bits.push(basis === WASH_WHOLE
+    ? 'Whole sample: the result is already whole-sample and is not scaled.'
+    : 'Coarse pan: the result is scaled by the percent passing the smallest coarse sieve.');
+  note.textContent = bits.join(' ');
+}
+
+async function openModifyDialog() {
+  const tab = getActiveTab();
+  if (!tab || tab.isCustomProduct || !tab.product) return;
+
+  const current = new Set();
+  (tab.sieveData || []).forEach(r => {
+    if (r.sieveLabel === 'Pan') return;
+    const col = SIEVE_COLUMNS.find(c => c.label === r.sieveLabel && c.type === r.sieveType);
+    if (col) current.add(col.key);
+  });
+  const onSpec = specKeySet(await getProductSpecs(tab.product, tab.quarry));
+
+  const list = (title, arr) =>
+    `<div class="picker-section-label">${title}</div>` +
+    arr.map(d => `<label class="picker-sieve-row">
+        <input type="checkbox" data-key="${d.key}"${current.has(d.key) ? ' checked' : ''}>
+        <span class="picker-sieve-label">${esc(d.label)}</span>
+        ${onSpec.has(d.key) ? '<span class="modify-chip" style="margin-left:auto">SPEC</span>' : ''}
+      </label>`).join('');
+
+  document.getElementById('modify-picker').innerHTML =
+    list('Coarse Sieves', COARSE_SIEVES) + list('Fine Sieves', FINE_SIEVES);
+  document.getElementById('mod-coarse-moist').checked = usesCoarseMoisture(tab);
+  document.getElementById('mod-fine-moist').checked = usesFineMoisture(tab);
+
+  document.getElementById('mod-wash-basis').value = washBasisOf(tab);
+  const opts = arr => arr.map(d =>
+    `<option value="${d.key}">${esc(d.label)}</option>`).join('');
+  const sieveSel = document.getElementById('mod-wash-sieve');
+  sieveSel.innerHTML = '<option value="">(none)</option>' +
+    '<optgroup label="Fine">' + opts(FINE_SIEVES) + '</optgroup>' +
+    '<optgroup label="Coarse">' + opts(COARSE_SIEVES) + '</optgroup>';
+  sieveSel.value = washSieveKeyOf(tab) || '';
+  updateModifyWashUI();
+
+  showOverlay('overlay-modify');
+}
+
+async function confirmModify() {
+  const tab = getActiveTab();
+  if (!tab) return;
+  const onSpec = specKeySet(await getProductSpecs(tab.product, tab.quarry));
+  const checked = new Set(Array.from(
+    document.querySelectorAll('#modify-picker input[type=checkbox]:checked')
+  ).map(cb => cb.dataset.key));
+
+  const m = Object.assign(defaultMods(), modsOf(tab));
+  m.addedSieves   = Array.from(checked).filter(k => !onSpec.has(k));
+  m.removedSieves = Array.from(onSpec).filter(k => !checked.has(k));
+
+  // A moisture override is only stored when it actually differs from the
+  // product default, so a product whose flag changes later still leads.
+  const p = productOf(tab);
+  const defC = !!(p && p.UsesCoarseInitialWeight);
+  const defF = !!(p && p.UsesFineInitialWeight);
+  const wantC = document.getElementById('mod-coarse-moist').checked;
+  const wantF = document.getElementById('mod-fine-moist').checked;
+  m.coarseMoisture = (wantC === defC) ? null : wantC;
+  m.fineMoisture   = (wantF === defF) ? null : wantF;
+
+  // Same rule for the wash: store an override only where it actually differs
+  // from the product, so a product row edited later still leads.
+  const wantBasis = document.getElementById('mod-wash-basis').value;
+  m.washBasis = (wantBasis === productWashBasis(tab)) ? null : wantBasis;
+
+  // With a fine stack the wash sieve is derived, so there is nothing to store —
+  // keeping a value here would only make the test look modified when it isn't.
+  const anyFine = Array.from(checked).some(k => k.indexOf('Fine_') === 0);
+  if (anyFine || wantBasis === WASH_NONE) {
+    m.washSieve = null;
+  } else {
+    const wantSieve = document.getElementById('mod-wash-sieve').value || null;
+    m.washSieve = (wantSieve === productWashSieveKey(tab)) ? null : wantSieve;
+  }
+
+  tab.mods = m;
+  showOverlay(null);
+  await applyMods(tab);
+}
+
+async function resetModify() {
+  const tab = getActiveTab();
+  if (!tab) return;
+  tab.mods = defaultMods();
+  showOverlay(null);
+  await applyMods(tab);
 }
 
 // ── TAB LABEL DEDUP ──────────────────────────────────────────
@@ -3084,24 +3833,14 @@ async function selectProduct(tab, productName) {
   tab.product = productName;
   tab.productId = prod?.ProductID || null;
   tab.isCustomProduct = false;
-  tab.customFineSectionMode = '';
-  tab.sieveData = specs.map(s => {
-    const row = createSieveRow(s.SieveLabel, s.SieveType, s.SieveOrder, s.MinPercent ?? null, s.MaxPercent ?? null);
-    const saved = tab.retainedValues[s.SieveType + '|' + s.SieveLabel];
-    if (saved) Object.assign(row, saved);   // re-fill matching sieve
-    return row;
-  });
-  // Pan rows — implied per section, carry retained Pan value if present.
-  if (specs.some(s => s.SieveType === 'Coarse')) {
-    const pan = createSieveRow('Pan', 'Coarse', 10, null, null);
-    const s = tab.retainedValues['Coarse|Pan']; if (s) Object.assign(pan, s);
-    tab.sieveData.push(pan);
-  }
-  if (specs.some(s => s.SieveType === 'Fine')) {
-    const panRow = createSieveRow('Pan', 'Fine', 200, null, null);
-    const s = tab.retainedValues['Fine|Pan']; if (s) Object.assign(panRow, s);
-    tab.sieveData.push(panRow);
-  }
+  tab.customWashBasis = '';
+  // A different product gets its own sieve set back. The old modifications
+  // named sieves this product may not even have, so carrying them across would
+  // silently add or skip the wrong ones. The VALUES survive in retainedValues.
+  tab.mods = defaultMods();
+  // Rows, Pan included, plus any re-filled values — all handled in one place
+  // now, so the modify dialog and a plain product switch can't drift apart.
+  tab.sieveData = buildSieveData(tab, specs);
   // Weight fields are section-level, not per-sieve; keep them across switches
   // too (they're only submitted when relevant to the chosen product).
   tab.notes = tab.notes || '';
@@ -3121,11 +3860,23 @@ async function getProductSpecs(productName, quarry) {
 
 // ── LOAD DATA ─────────────────────────────────────────────────
 async function loadSharePointData() {
-  const metaFields = ['Title', 'Quarry', 'ProductID', 'Active', 'FineMode', 'CoarseMoisture', 'FineMoisture', 'DisplayOrder'];
+  const metaFields = ['Title', 'Quarry', 'ProductID', 'Active', 'CoarseMoisture', 'FineMoisture', 'DisplayOrder'];
+  const washFields = ['WashBasis', 'WashSieve'];
   const sieveFields = SIEVE_COLUMNS.map(c => c.key);
   try {
     if (state.token) {
-      const items = await spGetAll(CONFIG.LISTS.PRODUCTS_ID, metaFields.concat(sieveFields));
+      // Graph rejects a $select naming a column the list does not have, so the
+      // wash columns are asked for optimistically and dropped on failure.
+      // Expected to fail until they are added to Gradation_Products; after that
+      // this fallback never runs and can go.
+      let items;
+      try {
+        items = await spGetAll(CONFIG.LISTS.PRODUCTS_ID, metaFields.concat(washFields).concat(sieveFields));
+      } catch (e) {
+        console.warn('Products query rejected — retrying without WashBasis/WashSieve. ' +
+                     'Expected until those columns exist on Gradation_Products.', e);
+        items = await spGetAll(CONFIG.LISTS.PRODUCTS_ID, metaFields.concat(sieveFields));
+      }
       if (items) {
         state.productRows = items.map(item => {
           const r = item.fields || {};
@@ -3134,7 +3885,8 @@ async function loadSharePointData() {
             Product: r.Title,
             ProductID: r.ProductID || null,
             Active: r.Active !== false, // treat missing/blank as active
-            FineMode: r.FineMode?.Value || r.FineMode || 'None',
+            WashBasis: r.WashBasis?.Value || r.WashBasis || '',
+            WashSieve: r.WashSieve?.Value || r.WashSieve || '',
             CoarseMoisture: !!r.CoarseMoisture,
             FineMoisture: !!r.FineMoisture,
             DisplayOrder: r.DisplayOrder,
@@ -3270,6 +4022,7 @@ async function addNewTab() {
 }
 
 async function switchTab(tabId) {
+  closeNumpad();   // this tab's inputs are about to be replaced wholesale
   state.activeTabId = tabId;
   renderAll();
 }
@@ -3287,6 +4040,7 @@ function setConnStatus(online) {
 }
 
 function switchScreen(name) {
+  closeNumpad();   // the field it was driving is about to be hidden
   if (!SCREENS.includes(name)) name = 'gradations';
   state.activeScreen = name;
   // body class drives which screen body + which header fields show
@@ -3350,7 +4104,7 @@ function createSgTab(defaults = {}) {
 }
 
 // ── SG / ABSORPTION CALCULATIONS ──────────────────────────────
-function todayISO() { return new Date().toISOString().split('T')[0]; }
+function todayISO() { return localISODate(); }
 // Immersed Sample Weight = (Basket + Sample) − Basket
 function sgImmersedAuto(t) {
   if (t.basketSampleWt == null || t.basketWt == null) return null;
@@ -3606,11 +4360,25 @@ function outOfSpec(val, spec) {
 function specRange(spec) {
   if (!spec) return '';
   const { min, max } = spec;
-  if (min != null && max != null) return `${min}–${max}`;
+  // A single fixed value reads as "100", not "100–100". formatSpec() on the
+  // entry screen has always done this; Review and the export never did.
+  if (min != null && max != null) return min === max ? `${min}` : `${min}–${max}`;
   if (max != null) return `≤${max}`;
   if (min != null) return `≥${min}`;
   return '';
 }
+// Percent passing in the Review table carries one decimal so a column of
+// values lines up: 95 renders as "95.0", 94.5 stays "94.5". 100 is the one
+// exception — it reads as a bare "100", never "100.0".
+// Display only. The Excel export deliberately keeps these as real numbers so
+// they stay sortable and usable in formulas.
+function fmtPctCell(v) {
+  if (v === undefined || v === null || v === '') return '';
+  const n = Number(v);
+  if (isNaN(n)) return esc(v);
+  return n === 100 ? '100' : n.toFixed(1);
+}
+
 let reviewHeaderWired = false;
 function wireReviewHeaderOnce() {
   if (reviewHeaderWired) return;
@@ -3637,7 +4405,7 @@ function wireReviewHeaderOnce() {
 // Compute [start, end] YYYY-MM-DD for a named preset.
 function presetRange(preset) {
   const now = new Date();
-  const iso = d => d.toISOString().split('T')[0];
+  const iso = d => localISODate(d);
   const today = iso(now);
   if (preset === 'today') return [today, today];
   if (preset === 'week') { const s = new Date(now); s.setDate(s.getDate() - 6); return [iso(s), today]; }
@@ -3757,11 +4525,12 @@ function renderReviewGroups(groups) {
           const tds = used.map(c => {
             const v = f[c.key + '_Pct'];
             const bad = outOfSpec(v, p.specByKey[c.key]);
-            return `<td class="${bad ? 'rv-bad' : ''}">${cell(v)}</td>`;
+            return `<td class="${bad ? 'rv-bad' : ''}">${fmtPctCell(v)}</td>`;
           }).join('');
           return `<tr>
             <td class="rv-selcell"><span class="rv-check rv-test-check ${r.selected[t._id] ? 'on' : ''}" data-id="${t._id}"></span></td>
             <td class="rv-datecell">${fmtDate(f)}</td>
+            <td class="rv-typecell">${esc(f.SampleType || '')}</td>
             ${tds}
             <td class="rv-notescell">${esc(f.Notes || '')}</td>
           </tr>`;
@@ -3777,22 +4546,22 @@ function renderReviewGroups(groups) {
             const a = nums.reduce((x, y) => x + y, 0) / nums.length;
             const av = Number(a.toFixed(1));
             const bad = outOfSpec(av, p.specByKey[c.key]);
-            return `<td class="${bad ? 'rv-bad' : ''}">${av}</td>`;
+            return `<td class="${bad ? 'rv-bad' : ''}">${fmtPctCell(av)}</td>`;
           }).join('');
           avgRow = `<tr class="rv-avg">
-            <td></td><td class="rv-datecell">Average</td>${tds}<td></td></tr>`;
+            <td></td><td class="rv-datecell">Average</td><td></td>${tds}<td></td></tr>`;
         }
         // Spec row
         const anySpec = used.some(c => specRange(p.specByKey[c.key]));
         let specRow = '';
         if (anySpec) {
           const tds = used.map(c => `<td>${esc(specRange(p.specByKey[c.key]))}</td>`).join('');
-          specRow = `<tr class="rv-spec"><td></td><td class="rv-datecell">Spec</td>${tds}<td></td></tr>`;
+          specRow = `<tr class="rv-spec"><td></td><td class="rv-datecell">Spec</td><td></td>${tds}<td></td></tr>`;
         }
         return `${head}
           <div class="rv-table-wrap">
             <table class="rv-table">
-              <thead><tr><th></th><th>Date</th>${colHead}<th>Notes</th></tr></thead>
+              <thead><tr><th></th><th>Date</th><th class="rv-type-h">Type</th>${colHead}<th>Notes</th></tr></thead>
               <tbody>${rows}${avgRow}${specRow}</tbody>
             </table>
           </div>`;
@@ -3835,10 +4604,16 @@ async function reviewSearch() {
     };
     const quarryOk = (f) => r.quarry === '__all__' || (f.Quarry || '') === r.quarry;
 
+    // Ask SharePoint for the date range instead of reading the whole log and
+    // discarding most of it here. inRange() below stays as a belt-and-braces
+    // check — it still has to run when spGetAll falls back to a full read.
+    const dateFilter =
+      `fields/${dateField} ge '${start}T00:00:00Z' and fields/${dateField} le '${end}T23:59:59Z'`;
+
     // Fetch both lists in parallel. SG list may not have items yet — tolerate.
     const [gradRows, sgRows] = await Promise.all([
-      spGetAll(CONFIG.LISTS.MASTER_LOG_ID),
-      spGetAll(CONFIG.LISTS.SG_LOG_ID).catch(e => { console.warn('SG fetch failed:', e); return []; }),
+      spGetAll(CONFIG.LISTS.MASTER_LOG_ID, [], dateFilter),
+      spGetAll(CONFIG.LISTS.SG_LOG_ID, [], dateFilter).catch(e => { console.warn('SG fetch failed:', e); return []; }),
     ]);
 
     // byQuarry[quarry] = { grad: {product: [tests]}, sg: [tests] }
@@ -3866,12 +4641,21 @@ async function reviewSearch() {
       });
     });
 
+    // Oldest first within a block, so a product tested several times in the
+    // range reads top-to-bottom in the order it happened. The Excel export
+    // reuses these same arrays, so it inherits the order for free.
+    const testSortKey = t => {
+      const f = t._fields;
+      return String(f.SampleDate || '').split('T')[0] + 'T' + String(f.SampleTime || '00:00');
+    };
+    const oldestFirst = arr => arr.slice().sort((a, b) => testSortKey(a).localeCompare(testSortKey(b)));
+
     // Build ordered groups: gradation products first, then one combined SG
     // block. Gradation products carry used sieve cols + spec ranges.
     const groups = Object.keys(byQuarry).sort().map(quarry => {
       const g = byQuarry[quarry];
       const gradProducts = Object.keys(g.grad).sort().map(product => {
-        const tests = g.grad[product];
+        const tests = oldestFirst(g.grad[product]);
         const used = SIEVE_COLUMNS.filter(c =>
           tests.some(t => {
             const v = t._fields[c.key + '_Pct'];
@@ -3886,7 +4670,7 @@ async function reviewSearch() {
         return { kind: 'grad', product, tests, used, specByKey };
       });
       const sgBlock = g.sg.length
-        ? [{ kind: 'sg', product: 'Specific Gravity', tests: g.sg }]
+        ? [{ kind: 'sg', product: 'Specific Gravity', tests: oldestFirst(g.sg) }]
         : [];
       return { quarry, products: [...gradProducts, ...sgBlock] };
     });
@@ -3938,16 +4722,18 @@ async function reviewExport() {
       if (bi > 0) ws.addRow([]);
       const titleRow = ws.addRow([`${b.quarry} — ${b.product}`]);
       titleRow.font = { bold: true, size: 12 };
-      const header = ['Date', ...b.used.map(c => c.label), 'Notes'];
-      const nSieve = b.used.length;                    // sieve cols are 2..(1+nSieve)
+      // Col 1 Date, col 2 Type, sieves 3..(2+nSieve), then Notes.
+      const header = ['Date', 'Type', ...b.used.map(c => c.label), 'Notes'];
+      const nSieve = b.used.length;
+      const SIEVE_C0 = 3;                              // 1-based column of the first sieve
       const centerSieveCells = (row) => {
-        for (let i = 0; i < nSieve; i++) row.getCell(i + 2).alignment = CENTER;
+        for (let i = 0; i < nSieve; i++) row.getCell(i + SIEVE_C0).alignment = CENTER;
       };
       const hRow = ws.addRow(header); hRow.font = HEAD_FONT; centerSieveCells(hRow);
       // Per-test rows
       b.tests.forEach(t => {
         const f = t._fields;
-        const vals = [fmtDate(f), ...b.used.map(c => {
+        const vals = [fmtDate(f), f.SampleType || '', ...b.used.map(c => {
           const v = f[c.key + '_Pct'];
           return v === undefined || v === null || v === '' ? '' : Number(v);
         }), f.Notes || ''];
@@ -3955,25 +4741,24 @@ async function reviewExport() {
         centerSieveCells(row);
         b.used.forEach((c, i) => {
           if (outOfSpec(f[c.key + '_Pct'], b.specByKey[c.key])) {
-            const cell = row.getCell(i + 2);
+            const cell = row.getCell(i + SIEVE_C0);
             cell.fill = RED; cell.font = { color: { argb: 'FF000000' } };
           }
         });
       });
       // Average row
       if (b.tests.length > 1) {
-        const avgVals = ['Average'];
         const avgNums = b.used.map(c => {
           const nums = b.tests.map(t => t._fields[c.key + '_Pct'])
             .filter(v => v !== undefined && v !== null && v !== '').map(Number);
           return nums.length ? Number((nums.reduce((a, x) => a + x, 0) / nums.length).toFixed(1)) : '';
         });
-        const row = ws.addRow(['Average', ...avgNums, '']);
+        const row = ws.addRow(['Average', '', ...avgNums, '']);
         row.font = { bold: true };
         centerSieveCells(row);
         b.used.forEach((c, i) => {
           if (outOfSpec(avgNums[i], b.specByKey[c.key])) {
-            const cell = row.getCell(i + 2);
+            const cell = row.getCell(i + SIEVE_C0);
             cell.fill = RED; cell.font = { color: { argb: 'FF000000' }, bold: true };
           }
         });
@@ -3981,7 +4766,7 @@ async function reviewExport() {
       // Spec row
       const anySpec = b.used.some(c => specRange(b.specByKey[c.key]));
       if (anySpec) {
-        const specVals = ['Spec', ...b.used.map(c => specRange(b.specByKey[c.key])), ''];
+        const specVals = ['Spec', '', ...b.used.map(c => specRange(b.specByKey[c.key])), ''];
         const row = ws.addRow(specVals);
         row.font = { italic: true };
         row.getCell(1).font = { bold: true };
@@ -3989,7 +4774,8 @@ async function reviewExport() {
       }
     });
     ws.columns.forEach(col => { col.width = 11; });
-    ws.getColumn(1).width = 10;
+    ws.getColumn(1).width = 10;   // Date
+    ws.getColumn(2).width = 12;   // Type
     ws.lastColumn.width = 26;
   }
 
@@ -4025,7 +4811,9 @@ async function reviewExport() {
 
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const fname = `QC Summary ${r.start} to ${r.end}.xlsx`;
+  const fname = (r.start === r.end)
+    ? `QC Summary ${r.start}.xlsx`
+    : `QC Summary ${r.start} to ${r.end}.xlsx`;
   const file = new File([blob], fname, { type: blob.type });
   // Share ONLY the file — no title/text, since some iOS targets turn the
   // title/text into a second (unwanted) plain-text attachment.
@@ -4207,7 +4995,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── ON-SCREEN NUMPAD ──────────────────────────────────────
   const numpad = document.getElementById('numpad');
   const NP_TARGETS = '.sieve-input, .weight-input, .sg-wt, .sg-calc-edit';
-  let npInput = null;
   // Inputs edited via the numpad. Programmatic .value changes never fire a
   // native 'change' on blur, and saving lives in the 'change' handlers — so
   // we dispatch it ourselves exactly once, on the way out of the field.
@@ -4235,6 +5022,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!isNumpadTarget(e.target)) return;
     npInput = e.target;
     document.body.classList.add('numpad-open');
+    // Deferred by a tick: on a touch device the browser sets the caret from the
+    // tap position AFTER focusin fires, so doing this synchronously would just
+    // be overwritten. focusin only fires when a field GAINS focus, which is
+    // exactly the "initial tap" case we want to override.
+    const el = e.target;
+    setTimeout(() => { if (document.activeElement === el) caretToEnd(el); }, 0);
   });
   document.addEventListener('focusout', (e) => {
     if (!isNumpadTarget(e.target)) return;
@@ -4260,8 +5053,11 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     const btn = e.target.closest('button');
     if (!btn) return;
-    if (!npInput || !document.contains(npInput)) return;
+    // The X is checked before the liveness guard: if the field went away with a
+    // re-render, closing is exactly what still needs to work.
+    if (btn.id === 'numpad-close') { closeNumpad(); armGhostClickGuard(); return; }
     const k = btn.dataset.k;
+    if (!npInput || !document.contains(npInput)) return;
     // Enter/Next/Prev may blur the last field, which hides the numpad. The
     // finger is still down over the pad; when it lifts, the browser would send
     // a click to whatever element is now beneath that point (often the Submit
@@ -4285,8 +5081,9 @@ document.addEventListener('DOMContentLoaded', () => {
         npInput.setSelectionRange(s - 1, s - 1);
       }
     } else {
-      // digit or decimal point — respect selection (fields are selected on
-      // focus, so the first keypress replaces the old value, like a real numpad)
+      // Digit or decimal point, inserted at the caret. The caret sits at the end
+      // of the value on entry, so typing appends and backspace deletes the last
+      // character — but a Pencil tap mid-value still edits in place.
       const s = npInput.selectionStart ?? npInput.value.length;
       const epos = npInput.selectionEnd ?? s;
       if (k === '.' && npInput.value.slice(0, s).includes('.') && epos <= s) return;
@@ -4297,16 +5094,16 @@ document.addEventListener('DOMContentLoaded', () => {
     npInput.dispatchEvent(new Event('input', { bubbles: true }));
   });
 
-  // Tap anywhere outside the numpad and outside a data-entry input to dismiss
-  // the pad — blurring the active field triggers the focusout close path above.
-  // Uses pointerdown for an immediate feel; no preventDefault so the tapped
-  // control still receives its normal event.
-  document.addEventListener('pointerdown', (e) => {
-    if (!document.body.classList.contains('numpad-open')) return;
-    if (e.target.closest?.('#numpad')) return;        // pad button — handled elsewhere
-    if (e.target.closest?.(NP_TARGETS)) return;        // another data field — keep open
-    if (npInput && document.contains(npInput)) npInput.blur();
-  }, true);   // capture phase, so it runs before the tapped element's own handlers
+  // Tap-anywhere-to-dismiss is deliberately GONE. It was the reason a tap meant
+  // to close the pad landed on Submit: the pad closed on pointerdown, and the
+  // pointerup that followed was delivered to whatever had been underneath.
+  //
+  // Closing is now explicit — the Done key, or Enter/next past the last field.
+  // Everything else still works while the pad is open: scrolling is a drag not
+  // a tap so it can never hit a button, and tapping another numeric field just
+  // moves the pad's target (see the focusout deferral above). Tapping Notes or
+  // a header field moves focus off a numpad target, which closes the pad by the
+  // normal route, and opening any dialog closes it via showOverlay().
 
   // New tab (context depends on the active screen)
   document.getElementById('btn-new-tab').addEventListener('click', async () => {
@@ -4424,6 +5221,15 @@ document.addEventListener('DOMContentLoaded', () => {
     renderHeader();
   });
   document.getElementById('btn-custom-confirm').addEventListener('click', confirmCustomProduct);
+
+  // Modify this test
+  document.getElementById('btn-modify-cancel').addEventListener('click', () => showOverlay(null));
+  document.getElementById('btn-modify-confirm').addEventListener('click', confirmModify);
+  document.getElementById('btn-modify-reset').addEventListener('click', resetModify);
+  document.getElementById('mod-wash-basis').addEventListener('change', updateModifyWashUI);
+  // Delegated: the picker's contents are rebuilt on every open, so the listener
+  // has to live on the container rather than the checkboxes.
+  document.getElementById('modify-picker').addEventListener('change', updateModifyWashUI);
 
   document.querySelectorAll('.section-toggle button').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -4578,10 +5384,15 @@ function openCustomDialog() {
      eliminates keyboard-driven viewport resizes (the source of the
      scroll-jump and stale-height problems). -->
 <div id="numpad" aria-hidden="true">
-  <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button><button data-k="bksp" class="np-fn">⌫</button>
-  <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button><button data-k="prev" class="np-fn">▲</button>
-  <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button><button data-k="next" class="np-fn">▼</button>
-  <button data-k=".">.</button><button data-k="0">0</button><button data-k="enter" class="np-enter" style="grid-column: span 2">Enter</button>
+  <div id="numpad-bar">
+    <button type="button" id="numpad-close" aria-label="Close keypad">&#10005;</button>
+  </div>
+  <div id="numpad-keys">
+    <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button><button data-k="bksp" class="np-fn">⌫</button>
+    <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button><button data-k="prev" class="np-fn">▲</button>
+    <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button><button data-k="next" class="np-fn">▼</button>
+    <button data-k=".">.</button><button data-k="0">0</button><button data-k="enter" class="np-enter" style="grid-column: span 2">Enter</button>
+  </div>
 </div>
 </body>
 </html>
